@@ -1,6 +1,9 @@
 (ns exercise-timer.library
   "Exercise Library Manager - handles CRUD operations for exercises with persistence")
 
+;; Forward declaration
+(declare save-library!)
+
 ;; ============================================================================
 ;; LocalStorage Constants
 ;; ============================================================================
@@ -203,9 +206,6 @@
 ;; ============================================================================
 ;; Library CRUD Operations
 ;; ============================================================================
-
-;; Forward declaration
-(declare save-library!)
 
 (defn load-library
   "Load exercises from local storage into memory.
