@@ -278,7 +278,12 @@
                                               (update-exercises! (library/load-library)))
                                  :class (if enabled? "enabled" "disabled")
                                  :title (if enabled? "Exclude from sessions" "Include in sessions")}
-             (if enabled? "✓" "✗")]]]))]
+             (if enabled? "✓" "✗")]
+            [:button.delete-btn {:on-click #(when (js/confirm (str "Delete '" ex-name "'?"))
+                                              (library/delete-exercise! ex-name)
+                                              (update-exercises! (library/load-library)))
+                                 :title "Delete exercise"}
+             "🗑"]]]))]
      [:div.library-actions
       [:button {:on-click #(library/export-and-download!)}
        "Export Library"]
@@ -296,7 +301,8 @@
         show? (:show-add-exercise ui)
         name (:add-exercise-name ui "")
         weight (:add-exercise-weight ui 1.0)
-        error (:add-exercise-error ui)]
+        error (:add-exercise-error ui)
+        input-ref (atom nil)]
     (when show?
       [:div.modal-overlay {:on-click #(update-ui! {:show-add-exercise false})}
        [:div.modal-content {:on-click #(.stopPropagation %)}
@@ -311,7 +317,12 @@
                   :id "exercise-name"
                   :value name
                   :placeholder "e.g., Push-ups"
-                  :on-change #(update-ui! {:add-exercise-name (-> % .-target .-value)})}]]
+                  :ref (fn [el] 
+                         (reset! input-ref el)
+                         (when el (.focus el)))
+                  :on-change #(update-ui! {:add-exercise-name (-> % .-target .-value)})
+                  :on-key-press #(when (= (.-key %) "Enter")
+                                   (add-exercise! name weight))}]]
         
         [:div.form-group
          [:label {:for "exercise-weight"} 

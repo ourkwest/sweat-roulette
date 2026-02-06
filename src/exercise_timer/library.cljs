@@ -710,3 +710,26 @@
    - Vector of enabled exercises"
   []
   (filterv #(:enabled % true) @library-state))
+
+
+(defn delete-exercise!
+  "Delete an exercise from the library by name.
+   
+   Parameters:
+   - exercise-name: string name of the exercise to delete
+   
+   Returns:
+   - {:ok true} on success
+   - {:error \"message\"} if exercise not found
+   
+   Side effects:
+   - Updates library-state atom
+   - Persists to localStorage"
+  [exercise-name]
+  (if (not (exercise-exists? exercise-name))
+    {:error (str "Exercise '" exercise-name "' not found")}
+    (let [updated-library (filterv #(not= (:name %) exercise-name) @library-state)
+          save-result (save-library! updated-library)]
+      (if (contains? save-result :ok)
+        {:ok true}
+        save-result))))
