@@ -1,0 +1,18 @@
+# Shadow-CLJS
+.shadow-cljs/
+node_modules/
+out/
+public/js/
+
+# ClojureScript
+.cpcache/
+.nrepl-port
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db

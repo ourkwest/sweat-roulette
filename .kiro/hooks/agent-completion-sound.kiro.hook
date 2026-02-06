@@ -1,0 +1,15 @@
+{
+  "enabled": true,
+  "name": "Agent Completion Sound",
+  "description": "Plays a sound notification when the agent finishes working and is awaiting user input",
+  "version": "1",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "paplay /usr/share/sounds/freedesktop/stereo/service-login.oga "
+  },
+  "workspaceFolderName": "sisyphus",
+  "shortName": "agent-completion-sound"
+}
