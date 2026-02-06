@@ -3,7 +3,8 @@
             [reagent.dom :as rdom]
             [exercise-timer.library :as library]
             [exercise-timer.session :as session]
-            [exercise-timer.timer :as timer]))
+            [exercise-timer.timer :as timer]
+            [exercise-timer.format :as format]))
 
 ;; ============================================================================
 ;; Global App State
@@ -105,15 +106,171 @@
     (update-exercises! exercises)))
 
 ;; ============================================================================
+;; UI Components
+;; ============================================================================
+
+;; Configuration Panel Component
+(defn configuration-panel []
+  (let [ui (:ui @app-state)
+        duration (:session-duration-minutes ui)
+        session-active? (not= :not-started (get-in @app-state [:timer-state :session-state]))]
+    [:div.configuration-panel
+     [:h2 "Session Configuration"]
+     [:div.form-group
+      [:label {:for "duration"} "Session Duration (minutes):"]
+      [:input {:type "number"
+               :id "duration"
+               :min 1
+               :max 120
+               :value duration
+               :disabled session-active?
+               :on-change #(update-ui! {:session-duration-minutes (js/parseInt (-> % .-target .-value))})}]]
+     [:button {:on-click (fn []
+                           (let [exercises (:exercises @app-state)
+                                 config (session/make-session-config duration)
+                                 session-plan (session/generate-session config exercises)]
+                             (update-current-session! session-plan)
+                             (timer/initialize-session! session-plan)
+                             (update-timer-state! (timer/get-state))))
+               :disabled (or session-active? (empty? (:exercises @app-state)))}
+      "Start Session"]]))
+
+;; Exercise Display Component
+(defn exercise-display []
+  (let [session (:current-session @app-state)
+        timer-state (:timer-state @app-state)
+        current-ex (get-current-exercise)]
+    (when (and session current-ex)
+      (let [index (:current-exercise-index timer-state)
+            total (count (:exercises session))
+            ex-name (get-in current-ex [:exercise :name])]
+        [:div.exercise-display
+         [:h2 "Current Exercise"]
+         [:div.exercise-name ex-name]
+         [:div.exercise-progress
+          (str "Exercise " (inc index) " of " total)]]))))
+
+;; Timer Display Component
+(defn timer-display []
+  (let [timer-state (:timer-state @app-state)
+        remaining (:remaining-seconds timer-state)
+        formatted (format/seconds-to-mm-ss remaining)]
+    [:div.timer-display
+     [:div.timer-value formatted]]))
+
+;; Control Panel Component
+(defn control-panel []
+  (let [timer-state (:timer-state @app-state)
+        state-keyword (:session-state timer-state)
+        session (:current-session @app-state)]
+    (when session
+      [:div.control-panel
+       [:h3 "Controls"]
+       (case state-keyword
+         :not-started
+         [:button {:on-click #(do (timer/start!)
+                                  (update-timer-state! (timer/get-state)))}
+          "Start"]
+         
+         :running
+         [:button {:on-click #(do (timer/pause!)
+                                  (update-timer-state! (timer/get-state)))}
+          "Pause"]
+         
+         :paused
+         [:button {:on-click #(do (timer/start!)
+                                  (update-timer-state! (timer/get-state)))}
+          "Resume"]
+         
+         :completed
+         [:div "Session Complete!"]
+         
+         nil)
+       
+       [:button {:on-click #(do (timer/restart!)
+                                (update-timer-state! (timer/get-state)))
+                 :disabled (= state-keyword :not-started)}
+        "Restart"]])))
+
+;; Completion Screen Component
+(defn completion-screen []
+  (let [timer-state (:timer-state @app-state)
+        state-keyword (:session-state timer-state)]
+    (when (= state-keyword :completed)
+      [:div.completion-screen
+       [:h2 "🎉 Session Complete!"]
+       [:p "Great job! You've completed your workout."]
+       [:button {:on-click #(do (update-current-session! nil)
+                                (update-timer-state! (timer/make-timer-state)))}
+        "Start New Session"]])))
+
+;; Exercise Library Panel Component
+(defn exercise-library-panel []
+  (let [exercises (:exercises @app-state)]
+    [:div.exercise-library-panel
+     [:h2 "Exercise Library"]
+     [:div.library-stats
+      (str (count exercises) " exercises")]
+     [:div.exercise-list
+      (for [ex exercises]
+        ^{:key (:name ex)}
+        [:div.exercise-item
+         [:span.exercise-name (:name ex)]
+         [:span.exercise-weight (str "Weight: " (:weight ex))]])]
+     [:div.library-actions
+      [:button {:on-click #(library/export-and-download!)}
+       "Export Library"]
+      [:button {:on-click #(js/alert "Import functionality - file picker would go here")}
+       "Import Library"]
+      [:button {:on-click #(js/alert "Add exercise dialog would go here")}
+       "Add Exercise"]]]))
+
+;; ============================================================================
 ;; Root Component
 ;; ============================================================================
 
-;; Root component - will be fully implemented in task 10
 (defn app []
-  [:div
-   [:h1 "Exercise Timer App"]
-   [:p "Application structure initialized. UI components will be implemented in later tasks."]
-   [:p (str "Loaded " (count (:exercises @app-state)) " exercises from library.")]])
+  [:div.app-container
+   [:header
+    [:h1 "Exercise Timer App"]]
+   
+   [:main
+    [:div.session-area
+     [configuration-panel]
+     
+     (when (:current-session @app-state)
+       [:div.active-session
+        [exercise-display]
+        [timer-display]
+        [control-panel]
+        [completion-screen]])]
+    
+    [:div.library-area
+     [exercise-library-panel]]]])
+
+;; ============================================================================
+;; Timer Callbacks
+;; ============================================================================
+
+(defn setup-timer-callbacks!
+  "Set up timer callbacks to update UI state."
+  []
+  (timer/clear-callbacks!)
+  
+  ;; Update UI on every tick
+  (timer/on-tick
+   (fn [_remaining]
+     (update-timer-state! (timer/get-state))))
+  
+  ;; Update UI when exercise changes
+  (timer/on-exercise-change
+   (fn [_new-index]
+     (update-timer-state! (timer/get-state))))
+  
+  ;; Update UI when session completes
+  (timer/on-complete
+   (fn []
+     (update-timer-state! (timer/get-state)))))
 
 ;; ============================================================================
 ;; App Initialization
@@ -122,6 +279,7 @@
 (defn init! []
   "Initialize the application."
   (initialize-app-state!)
+  (setup-timer-callbacks!)
   (rdom/render [app]
                (.getElementById js/document "app")))
 
