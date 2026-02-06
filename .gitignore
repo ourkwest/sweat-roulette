@@ -2,7 +2,11 @@
 .shadow-cljs/
 node_modules/
 out/
+
+# Generated files (development)
 public/js/
+public/index.html
+public/css/
 
 # ClojureScript
 .cpcache/

@@ -5,10 +5,17 @@ A web-based exercise timer application built with ClojureScript and Reagent. Thi
 ## ✨ Features
 
 - **Configurable Sessions**: Set your workout duration (default 5 minutes)
-- **Weighted Exercise Distribution**: Exercises receive time proportional to their difficulty
+- **Balanced Time Distribution**: Harder exercises get less time, easier exercises get more time for a balanced workout
 - **Smart Exercise Selection**: No exercise repeats until all exercises have been used
 - **Timer Controls**: Start, pause, resume, and restart your workout
-- **Exercise Library**: 10 default exercises with ability to import/export
+- **Voice Announcements**: British-accented voice announces exercise names, durations, and time remaining (optional)
+- **Exercise Library Management**: 
+  - 14 default exercises included
+  - Add new exercises with custom difficulty weights
+  - Adjust exercise weights with +/− buttons
+  - Enable/disable exercises for session inclusion
+  - Delete exercises you don't want
+  - Import/export your library as JSON
 - **Responsive Design**: Works on mobile, tablet, and desktop
 - **Local Storage**: Your exercise library persists in the browser
 
@@ -32,22 +39,43 @@ npx shadow-cljs compile test
 ### Production Build
 
 ```bash
-# Create optimized production build
-npx shadow-cljs release app
+# Easy way: Use the build script
+./build.sh
 
-# The app is now ready in the public/ directory (312KB optimized)
+# Manual way:
+# 1. Copy source files
+cp src/public/index.html docs/
+cp -r src/public/css docs/
+
+# 2. Build JavaScript
+npx shadow-cljs release release
+
+# The app is now ready in the docs/ directory (313KB optimized)
 ```
 
-### Serving the Production Build
+### Deploying to GitHub Pages
+
+The project is configured to deploy from the `/docs` folder:
+
+1. Push your code to GitHub
+2. Go to your repository Settings → Pages
+3. Under "Source", select "Deploy from a branch"
+4. Select branch: `main` (or `master`) and folder: `/docs`
+5. Click Save
+6. Your app will be live at `https://yourusername.github.io/your-repo-name/`
+
+The `/docs` folder contains the production build and is ready for GitHub Pages deployment.
+
+### Serving Locally
 
 You can serve the production build with any static file server:
 
 ```bash
 # Using Python
-python3 -m http.server 8000 --directory public
+python3 -m http.server 8000 --directory docs
 
 # Using Node.js http-server
-npx http-server public -p 8000
+npx http-server docs -p 8000
 
 # Using any other static file server
 ```
@@ -57,19 +85,32 @@ Then open http://localhost:8000 in your browser.
 ## 📁 Project Structure
 
 ```
-├── src/exercise_timer/
-│   ├── core.cljs          # Main app and UI components
-│   ├── library.cljs       # Exercise library management
-│   ├── session.cljs       # Session generation with weighted time
-│   ├── timer.cljs         # Timer management and callbacks
-│   └── format.cljs        # Time formatting utilities
+├── src/
+│   ├── exercise_timer/    # ClojureScript source code
+│   │   ├── core.cljs      # Main app and UI components
+│   │   ├── library.cljs   # Exercise library management
+│   │   ├── session.cljs   # Session generation with weighted time
+│   │   ├── timer.cljs     # Timer management and callbacks
+│   │   ├── speech.cljs    # Voice announcements (Web Speech API)
+│   │   └── format.cljs    # Time formatting utilities
+│   └── public/            # Source HTML and CSS
+│       ├── index.html     # App entry point (source)
+│       └── css/styles.css # Responsive styles (source)
 ├── test/exercise_timer/   # Comprehensive test suite (161 tests)
-├── public/
-│   ├── index.html         # App entry point
-│   ├── css/styles.css     # Responsive styles
-│   └── js/main.js         # Compiled JavaScript (312KB optimized)
+├── docs/                  # Production build (GitHub Pages ready)
+│   ├── index.html         # Generated from src/public/
+│   ├── css/styles.css     # Generated from src/public/
+│   ├── js/main.js         # Compiled JavaScript (313KB optimized)
+│   └── .nojekyll          # GitHub Pages config
+├── public/                # Development build (generated, gitignored)
+├── build.sh               # Build script for GitHub Pages
 └── shadow-cljs.edn        # Build configuration
 ```
+
+**Key Points:**
+- **Source files** live in `src/` (both ClojureScript and HTML/CSS)
+- **Development build** goes to `public/` (gitignored, for local dev server)
+- **Production build** goes to `docs/` (committed, for GitHub Pages)
 
 ## 🛠 Technology Stack
 
@@ -77,6 +118,7 @@ Then open http://localhost:8000 in your browser.
 - **Build Tool**: shadow-cljs
 - **Frontend**: Reagent (React wrapper)
 - **Storage**: Browser LocalStorage
+- **Speech**: Web Speech API (native browser)
 - **Testing**: cljs.test + test.check (property-based testing)
 
 ## ✅ Test Coverage
@@ -89,7 +131,7 @@ All core algorithms (weighted time distribution, conflict resolution, timer mana
 
 ## 💪 Default Exercises
 
-The app comes with 10 default exercises:
+The app comes with 14 default exercises:
 - Push-ups (weight: 1.2)
 - Squats (weight: 1.0)
 - Plank (weight: 1.5)
@@ -100,27 +142,51 @@ The app comes with 10 default exercises:
 - High Knees (weight: 0.9)
 - Sit-ups (weight: 1.0)
 - Wall Sit (weight: 1.4)
+- Russian Twists (weight: 1.1)
+- Kneel to Stand (weight: 1.6)
+- Air Punches (weight: 0.7)
+- Plank Shoulder Taps (weight: 1.4)
 
 ## 📖 How It Works
 
 1. **Configure**: Set your desired session duration (1-120 minutes)
-2. **Start**: Click "Start Session" to begin your workout
-3. **Exercise**: Follow the on-screen exercise with countdown timer
-4. **Control**: Pause, resume, or restart as needed
-5. **Complete**: Celebrate when you finish! 🎉
+2. **Customize**: Enable/disable exercises, adjust weights, or add new ones
+3. **Start**: Click "Start Session" to generate a workout from enabled exercises
+4. **Exercise**: Follow the on-screen exercise with countdown timer and voice guidance
+5. **Control**: Pause, resume, or restart as needed
+6. **Complete**: Celebrate when you finish! 🎉
 
-### Weighted Time Distribution
+### Balanced Time Distribution
 
-Exercises are assigned time based on their difficulty weight:
-- Higher weight = more time (e.g., Burpees at 1.8)
-- Lower weight = less time (e.g., Jumping Jacks at 0.8)
-- The algorithm ensures total time equals your session duration
+Exercises are assigned time **inversely** proportional to their difficulty weight:
+- **Higher weight = harder exercise = LESS time** (e.g., Burpees at 1.8 get ~20 seconds)
+- **Lower weight = easier exercise = MORE time** (e.g., Air Punches at 0.7 get ~50 seconds)
+- This creates a balanced workout with shorter bursts of intense exercises
+- The algorithm ensures total time equals your session duration exactly
 
 ### Exercise Selection
 
+- Only **enabled** exercises are included in sessions
 - Exercises cycle through the entire library before repeating
 - No consecutive duplicates
 - Randomized order each cycle for variety
+
+### Voice Announcements
+
+- **British English accent** by default
+- Announces exercise name and duration when starting each exercise
+- Announces time remaining every 10 seconds (at 10, 20, 30, etc.)
+- Announces completion message
+- Can be toggled on/off in the configuration panel
+- Works offline (uses native browser speech synthesis)
+
+## 🎛 Exercise Library Controls
+
+Each exercise has four controls:
+- **− button**: Decrease difficulty weight by 0.1 (minimum 0.5)
+- **+ button**: Increase difficulty weight by 0.1 (maximum 2.0)
+- **✓/✗ button**: Toggle enabled/disabled (green = enabled, red = disabled)
+- **🗑 button**: Delete exercise (with confirmation)
 
 ## 📥📤 Import/Export
 
@@ -136,11 +202,12 @@ Works in all modern browsers that support:
 - ES6+ JavaScript
 - LocalStorage API
 - CSS Grid and Flexbox
+- Web Speech API (for voice announcements)
 
 Tested on:
-- Chrome/Edge (latest)
-- Firefox (latest)
-- Safari (latest)
+- Chrome/Edge (latest) - Excellent speech support
+- Firefox (latest) - Good speech support
+- Safari (latest) - Excellent speech support
 
 ## 📱 Responsive Design
 
@@ -157,6 +224,7 @@ The app follows a clean architecture with:
 - **Immutable Data**: All state updates use immutable operations
 - **Reactive UI**: Reagent atoms for automatic UI updates
 - **Property-Based Testing**: Ensures correctness across all inputs
+- **Callback System**: Timer events trigger UI updates and voice announcements
 
 ## 📄 License
 
@@ -169,3 +237,4 @@ Built with:
 - [Reagent](https://reagent-project.github.io/)
 - [shadow-cljs](https://shadow-cljs.github.io/docs/UsersGuide.html)
 - [test.check](https://github.com/clojure/test.check)
+- [Web Speech API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API)

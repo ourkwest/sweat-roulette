@@ -3,14 +3,21 @@
  :dependencies [[reagent "1.2.0"]
                 [org.clojure/test.check "1.1.1"]]
  
- :dev-http {8020 "public"}
+ :dev-http {8020 {:root "public"
+                  :handler shadow.http.push-state/handle}}
  
  :builds
  {:app {:target :browser
         :output-dir "public/js"
         :asset-path "/js"
         :modules {:main {:init-fn exercise-timer.core/init!}}
-        :devtools {:after-load exercise-timer.core/reload!}}
+        :devtools {:after-load exercise-timer.core/reload!
+                   :preloads [shadow.cljs.devtools.client.browser]}}
+  
+  :release {:target :browser
+            :output-dir "docs/js"
+            :asset-path "/js"
+            :modules {:main {:init-fn exercise-timer.core/init!}}}
   
   :test {:target :node-test
          :output-to "out/test.js"

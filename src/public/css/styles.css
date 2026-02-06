@@ -1,0 +1,417 @@
+/* Exercise Timer App Styles */
+
+/* Reset and Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  line-height: 1.6;
+  color: #333;
+  background: #f5f5f5;
+  padding: 20px;
+}
+
+/* App Container */
+.app-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+header {
+  background: #2c3e50;
+  color: white;
+  padding: 20px;
+  text-align: center;
+}
+
+header h1 {
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+main {
+  padding: 20px;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+}
+
+/* Configuration Panel */
+.configuration-panel {
+  background: #ecf0f1;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.configuration-panel h2 {
+  margin-bottom: 15px;
+  color: #2c3e50;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #bdc3c7;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+/* Buttons */
+button {
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.3s;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+button:hover:not(:disabled) {
+  background: #2980b9;
+}
+
+button:disabled {
+  background: #95a5a6;
+  cursor: not-allowed;
+}
+
+/* Active Session */
+.active-session {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  border: 2px solid #3498db;
+}
+
+/* Exercise Display */
+.exercise-display {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.exercise-display h2 {
+  color: #7f8c8d;
+  font-size: 1rem;
+  margin-bottom: 10px;
+}
+
+.exercise-name {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #2c3e50;
+  margin-bottom: 10px;
+}
+
+.exercise-progress {
+  color: #7f8c8d;
+  font-size: 1.1rem;
+}
+
+/* Timer Display */
+.timer-display {
+  text-align: center;
+  margin: 30px 0;
+}
+
+.timer-value {
+  font-size: 4rem;
+  font-weight: bold;
+  color: #e74c3c;
+  font-family: 'Courier New', monospace;
+}
+
+/* Control Panel */
+.control-panel {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.control-panel h3 {
+  margin-bottom: 15px;
+  color: #2c3e50;
+}
+
+.control-panel button {
+  margin: 0 10px;
+}
+
+/* Completion Screen */
+.completion-screen {
+  text-align: center;
+  padding: 40px;
+  background: #2ecc71;
+  color: white;
+  border-radius: 8px;
+  margin: 20px 0;
+}
+
+.completion-screen h2 {
+  font-size: 2rem;
+  margin-bottom: 15px;
+}
+
+.completion-screen button {
+  background: white;
+  color: #2ecc71;
+  margin-top: 20px;
+}
+
+.completion-screen button:hover {
+  background: #ecf0f1;
+}
+
+/* Exercise Library Panel */
+.exercise-library-panel {
+  background: #ecf0f1;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.exercise-library-panel h2 {
+  margin-bottom: 15px;
+  color: #2c3e50;
+}
+
+.library-stats {
+  color: #7f8c8d;
+  margin-bottom: 15px;
+  font-size: 0.9rem;
+}
+
+.exercise-list {
+  max-height: 400px;
+  overflow-y: auto;
+  margin-bottom: 15px;
+}
+
+.exercise-item {
+  background: white;
+  padding: 10px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: opacity 0.3s;
+}
+
+.exercise-item.disabled {
+  opacity: 0.5;
+}
+
+.exercise-item .exercise-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.exercise-item .exercise-name {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.exercise-item .exercise-weight {
+  font-size: 0.9rem;
+  color: #7f8c8d;
+}
+
+.exercise-item .exercise-controls {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.exercise-item .weight-btn {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 5px 10px;
+  font-size: 18px;
+  font-weight: bold;
+  background: #3498db;
+}
+
+.exercise-item .weight-btn:hover:not(:disabled) {
+  background: #2980b9;
+}
+
+.exercise-item .toggle-btn {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 5px 10px;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.exercise-item .toggle-btn.enabled {
+  background: #2ecc71;
+}
+
+.exercise-item .toggle-btn.enabled:hover {
+  background: #27ae60;
+}
+
+.exercise-item .toggle-btn.disabled {
+  background: #e74c3c;
+}
+
+.exercise-item .toggle-btn.disabled:hover {
+  background: #c0392b;
+}
+
+.exercise-item .delete-btn {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 5px 10px;
+  font-size: 16px;
+  background: #95a5a6;
+}
+
+.exercise-item .delete-btn:hover {
+  background: #e74c3c;
+}
+
+.library-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.library-actions button {
+  flex: 1;
+  min-width: 120px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  main {
+    grid-template-columns: 1fr;
+  }
+  
+  .exercise-name {
+    font-size: 2rem;
+  }
+  
+  .timer-value {
+    font-size: 3rem;
+  }
+  
+  .library-actions {
+    flex-direction: column;
+  }
+  
+  .library-actions button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    padding: 10px;
+  }
+  
+  header h1 {
+    font-size: 1.5rem;
+  }
+  
+  .exercise-name {
+    font-size: 1.5rem;
+  }
+  
+  .timer-value {
+    font-size: 2.5rem;
+  }
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  padding: 30px;
+  border-radius: 8px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.modal-content h2 {
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+.modal-content .form-group {
+  margin-bottom: 20px;
+}
+
+.modal-content .form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.modal-content .form-group input[type="text"] {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #bdc3c7;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+.modal-content .form-group input[type="range"] {
+  width: 100%;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.modal-actions button {
+  min-width: 100px;
+}
+
+.error-message {
+  background: #e74c3c;
+  color: white;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+}
