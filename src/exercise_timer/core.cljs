@@ -78,6 +78,28 @@
   [ui-updates]
   (swap! app-state update :ui merge ui-updates))
 
+(defn add-exercise!
+  "Add a new exercise to the library.
+   
+   Parameters:
+   - name: exercise name
+   - weight: exercise weight (0.5 to 2.0)
+   
+   Side effects:
+   - Adds exercise to library
+   - Updates app state
+   - Closes add exercise dialog"
+  [name weight]
+  (let [result (library/add-exercise! {:name name :weight weight})]
+    (if (contains? result :ok)
+      (do
+        (update-exercises! (library/load-library))
+        (update-ui! {:show-add-exercise false
+                     :add-exercise-name ""
+                     :add-exercise-weight 1.0
+                     :add-exercise-error nil}))
+      (update-ui! {:add-exercise-error (:error result)}))))
+
 (defn get-current-exercise
   "Get the current exercise from the session.
    
@@ -262,8 +284,51 @@
        "Export Library"]
       [:button {:on-click #(js/alert "Import functionality - file picker would go here")}
        "Import Library"]
-      [:button {:on-click #(js/alert "Add exercise dialog would go here")}
+      [:button {:on-click #(update-ui! {:show-add-exercise true
+                                        :add-exercise-name ""
+                                        :add-exercise-weight 1.0
+                                        :add-exercise-error nil})}
        "Add Exercise"]]]))
+
+;; Add Exercise Dialog Component
+(defn add-exercise-dialog []
+  (let [ui (:ui @app-state)
+        show? (:show-add-exercise ui)
+        name (:add-exercise-name ui "")
+        weight (:add-exercise-weight ui 1.0)
+        error (:add-exercise-error ui)]
+    (when show?
+      [:div.modal-overlay {:on-click #(update-ui! {:show-add-exercise false})}
+       [:div.modal-content {:on-click #(.stopPropagation %)}
+        [:h2 "Add New Exercise"]
+        
+        (when error
+          [:div.error-message error])
+        
+        [:div.form-group
+         [:label {:for "exercise-name"} "Exercise Name:"]
+         [:input {:type "text"
+                  :id "exercise-name"
+                  :value name
+                  :placeholder "e.g., Push-ups"
+                  :on-change #(update-ui! {:add-exercise-name (-> % .-target .-value)})}]]
+        
+        [:div.form-group
+         [:label {:for "exercise-weight"} 
+          (str "Weight: " weight " (0.5 = easier, 2.0 = harder)")]
+         [:input {:type "range"
+                  :id "exercise-weight"
+                  :min 0.5
+                  :max 2.0
+                  :step 0.1
+                  :value weight
+                  :on-change #(update-ui! {:add-exercise-weight (js/parseFloat (-> % .-target .-value))})}]]
+        
+        [:div.modal-actions
+         [:button {:on-click #(add-exercise! name weight)}
+          "Add Exercise"]
+         [:button {:on-click #(update-ui! {:show-add-exercise false})}
+          "Cancel"]]]])))
 
 ;; ============================================================================
 ;; Root Component
@@ -286,7 +351,10 @@
         [completion-screen]])]
     
     [:div.library-area
-     [exercise-library-panel]]]])
+     [exercise-library-panel]]]
+   
+   ;; Modals
+   [add-exercise-dialog]])
 
 ;; ============================================================================
 ;; Timer Callbacks
