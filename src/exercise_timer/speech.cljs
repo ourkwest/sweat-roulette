@@ -133,7 +133,6 @@
   [exercise-name duration-seconds]
   (let [time-text (format-time-text duration-seconds)
         full-text (str exercise-name ", " time-text)]
-        (println (pr-str full-text) (pr-str duration-seconds) (pr-str time-text))
     (speak! full-text {:rate 0.9 :lang "en-GB"})))
 
 (defn speak-time-remaining!
@@ -195,36 +194,36 @@
     (reset! last-announcement-time seconds)
     true))
 
-(defn setup-speech-callbacks!
-  "Set up speech callbacks for the timer.
-   This should be called after timer callbacks are initialized.
-   
-   Features:
-   - Announces exercise name when changing exercises
-   - Announces time remaining every 10 seconds
-   - Announces completion
-   
-   Parameters:
-   - timer-ns: the timer namespace (exercise-timer.timer)
-   
-   Example:
-   (setup-speech-callbacks! timer)"
-  [timer-ns]
-  (when (speech-available?)
-    ;; Announce exercise name on change
-    (.on-exercise-change timer-ns
-                         (fn [_index]
-                           ;; Get the current exercise name from app state
-                           ;; This would need to be passed in or accessed from app state
-                           (js/console.log "Exercise changed - would announce here")))
-    
-    ;; Announce time every 10 seconds
-    (.on-tick timer-ns
-              (fn [remaining]
-                (when (should-announce-time? remaining)
-                  (speak-time-remaining! remaining))))
-    
-    ;; Announce completion
-    (.on-complete timer-ns
-                  (fn []
-                    (speak-completion!)))))
+;(defn setup-speech-callbacks!
+;  "Set up speech callbacks for the timer.
+;   This should be called after timer callbacks are initialized.
+;   
+;   Features:
+;   - Announces exercise name when changing exercises
+;   - Announces time remaining every 10 seconds
+;   - Announces completion
+;   
+;   Parameters:
+;   - timer-ns: the timer namespace (exercise-timer.timer)
+;   
+;   Example:
+ ;  (setup-speech-callbacks! timer)"
+;  [timer-ns]
+;  (when (speech-available?)
+;    ;; Announce exercise name on change
+;    (.on-exercise-change timer-ns
+;                         (fn [_index]
+;                           ;; Get the current exercise name from app state
+;                           ;; This would need to be passed in or accessed from app state
+;                           (js/console.log "Exercise changed - would announce here")))
+;    
+;    ;; Announce time every 10 seconds
+;    (.on-tick timer-ns
+ ;             (fn [remaining]
+ ;               (when (should-announce-time? remaining)
+ ;                 (speak-time-remaining! remaining))))
+ ;   
+ ;   ;; Announce completion
+ ;   (.on-complete timer-ns
+ ;                 (fn []
+ ;                   (speak-completion!)))))
