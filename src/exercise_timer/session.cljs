@@ -92,44 +92,46 @@
 ;; ============================================================================
 
 (defn calculate-weight-sum
-  "Calculate the sum of all exercise weights.
+  "Calculate the sum of inverse exercise weights (1/weight).
    
    Parameters:
    - exercises: vector of exercise maps with :weight
    
    Returns:
-   - number representing sum of all weights
+   - number representing sum of all inverse weights
    
    Validates: Requirements 2.4"
   [exercises]
   {:pre [(vector? exercises)
          (seq exercises)
          (every? #(contains? % :weight) exercises)]}
-  (reduce + (map :weight exercises)))
+  (reduce + (map #(/ 1.0 (:weight %)) exercises)))
 
 (defn calculate-base-time
-  "Calculate base time per unit weight.
+  "Calculate base time per unit inverse weight.
    
-   Base time is the total duration divided by the sum of all weights.
-   This gives us the time allocation for a weight of 1.0.
+   Base time is the total duration divided by the sum of inverse weights.
+   With inverted weights: higher weight = harder = less time.
    
    Parameters:
    - total-duration-seconds: total session duration in seconds
-   - weight-sum: sum of all exercise weights
+   - inverse-weight-sum: sum of all inverse exercise weights (1/weight)
    
    Returns:
    - number representing base time per unit weight (may be fractional)
    
    Validates: Requirements 2.4"
-  [total-duration-seconds weight-sum]
+  [total-duration-seconds inverse-weight-sum]
   {:pre [(pos-int? total-duration-seconds)
-         (pos? weight-sum)]}
-  (/ total-duration-seconds weight-sum))
+         (pos? inverse-weight-sum)]}
+  (/ total-duration-seconds inverse-weight-sum))
 
 (defn calculate-exercise-duration
   "Calculate duration for a single exercise based on its weight.
    
-   Duration = base-time * exercise-weight (rounded down to integer seconds)
+   Duration = base-time / exercise-weight (rounded down to integer seconds)
+   Higher weight = harder exercise = less time
+   Lower weight = easier exercise = more time
    
    Parameters:
    - base-time: base time per unit weight
@@ -144,7 +146,7 @@
          (pos? base-time)
          (number? exercise-weight)
          (pos? exercise-weight)]}
-  (int (Math/floor (* base-time exercise-weight))))
+  (int (Math/floor (/ base-time exercise-weight))))
 
 (defn distribute-remaining-seconds
   "Distribute remaining seconds due to rounding across exercises.
@@ -175,7 +177,7 @@
     initial-durations
     (let [;; Calculate fractional remainders for each exercise
           fractional-parts (mapv (fn [exercise duration]
-                                   (let [exact-duration (* base-time (:weight exercise))
+                                   (let [exact-duration (/ base-time (:weight exercise))
                                          fractional (- exact-duration duration)]
                                      fractional))
                                  exercises
@@ -197,12 +199,15 @@
             initial-durations))))
 
 (defn distribute-time-weighted
-  "Distribute total session time across exercises based on their weights.
+  "Distribute total session time across exercises based on inverse of their weights.
+   
+   Higher weight = harder exercise = less time
+   Lower weight = easier exercise = more time
    
    Algorithm:
-   1. Calculate sum of all weights
-   2. Calculate base time = total-duration / weight-sum
-   3. For each exercise, calculate duration = floor(base-time * weight)
+   1. Calculate sum of inverse weights (1/weight for each exercise)
+   2. Calculate base time = total-duration / inverse-weight-sum
+   3. For each exercise, calculate duration = floor(base-time / weight)
    4. Calculate remaining seconds = total-duration - sum(calculated-durations)
    5. Distribute remaining seconds to exercises with largest fractional remainders
    
@@ -221,10 +226,10 @@
          (seq exercises)
          (every? #(and (contains? % :name) (contains? % :weight)) exercises)
          (pos-int? total-duration-seconds)]}
-  (let [;; Step 1: Calculate sum of weights
-        weight-sum (calculate-weight-sum exercises)
-        ;; Step 2: Calculate base time per unit weight
-        base-time (calculate-base-time total-duration-seconds weight-sum)
+  (let [;; Step 1: Calculate sum of inverse weights
+        inverse-weight-sum (calculate-weight-sum exercises)
+        ;; Step 2: Calculate base time per unit inverse weight
+        base-time (calculate-base-time total-duration-seconds inverse-weight-sum)
         ;; Step 3: Calculate initial durations (floored to integers)
         initial-durations (mapv #(calculate-exercise-duration base-time (:weight %))
                                 exercises)

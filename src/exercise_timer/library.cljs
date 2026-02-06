@@ -170,7 +170,7 @@
 ;; ============================================================================
 
 (def ^:private default-exercises
-  "Default set of 10 exercises to initialize the library.
+  "Default set of exercises to initialize the library.
    Validates: Requirements 6.1, 6.6"
   [{:name "Push-ups" :weight 1.2}
    {:name "Squats" :weight 1.0}
@@ -181,7 +181,11 @@
    {:name "Burpees" :weight 1.8}
    {:name "High Knees" :weight 0.9}
    {:name "Sit-ups" :weight 1.0}
-   {:name "Wall Sit" :weight 1.4}])
+   {:name "Wall Sit" :weight 1.4}
+   {:name "Russian Twists" :weight 1.1}
+   {:name "Kneel to Stand" :weight 1.6}
+   {:name "Air Punches" :weight 0.7}
+   {:name "Plank Shoulder Taps" :weight 1.4}])
 
 (defn initialize-defaults!
   "Initialize the exercise library with default exercises.
