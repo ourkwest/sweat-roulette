@@ -197,34 +197,34 @@ This plan implements a ClojureScript-based exercise timer web application with w
     - Test file download trigger
     - _Requirements: 11.5, 11.7_
 
-- [ ] 7. Checkpoint - Ensure all business logic tests pass
+- [x] 7. Checkpoint - Ensure all business logic tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 8. Implement State Management
-  - [ ] 8.1 Create global app state atom
+- [x] 8. Implement State Management
+  - [x] 8.1 Create global app state atom
     - Define app-state structure with exercises, session, timer, and UI state
     - Initialize with Reagent atom
     - _Requirements: All (state foundation)_
   
-  - [ ] 8.2 Implement state update functions
+  - [x] 8.2 Implement state update functions
     - Create helper functions for updating exercises
     - Create helper functions for updating session
     - Create helper functions for updating timer state
     - Create helper functions for updating UI state
     - _Requirements: 8.4_
   
-  - [ ] 8.3 Write unit tests for state management
+  - [x] 8.3 Write unit tests for state management
     - Test atomic state transitions
     - Test state update helpers
     - _Requirements: 8.4_
 
-- [ ] 9. Implement time formatting utility
-  - [ ] 9.1 Create MM:SS formatter
+- [x] 9. Implement time formatting utility
+  - [x] 9.1 Create MM:SS formatter
     - Implement function to convert seconds to MM:SS format
     - Ensure zero-padding for minutes and seconds
     - _Requirements: 4.5_
   
-  - [ ] 9.2 Write property test for time format
+  - [x] 9.2 Write property test for time format
     - **Property 10: Time Format Validation**
     - **Validates: Requirements 4.5**
 
