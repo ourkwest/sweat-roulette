@@ -119,6 +119,19 @@
   [f & args]
   (apply swap! timer-state f args))
 
+(defn- trigger-callbacks!
+  "Trigger all registered callbacks for a specific event type.
+   
+   Parameters:
+   - event-type: keyword (:on-tick, :on-exercise-change, :on-complete)
+   - args: arguments to pass to callbacks
+   
+   Side effects:
+   - Invokes all registered callbacks for the event type"
+  [event-type & args]
+  (doseq [callback (get @callbacks event-type)]
+    (apply callback args)))
+
 (defn initialize-session!
   "Initialize a new session with a session plan.
    
@@ -178,6 +191,10 @@
       (do
         (update-state! assoc :session-state :running)
         (start-interval!)
+        ;; Trigger exercise-change callback when starting from :not-started
+        ;; This ensures the first exercise is announced just like subsequent ones
+        (when (= state-keyword :not-started)
+          (trigger-callbacks! :on-exercise-change 0))
         {:ok true}))))
 
 (defn pause!
@@ -235,19 +252,6 @@
 ;; ============================================================================
 ;; Timer Tick Logic and Exercise Progression
 ;; ============================================================================
-
-(defn- trigger-callbacks!
-  "Trigger all registered callbacks for a specific event type.
-   
-   Parameters:
-   - event-type: keyword (:on-tick, :on-exercise-change, :on-complete)
-   - args: arguments to pass to callbacks
-   
-   Side effects:
-   - Invokes all registered callbacks for the event type"
-  [event-type & args]
-  (doseq [callback (get @callbacks event-type)]
-    (apply callback args)))
 
 (defn- advance-to-next-exercise!
   "Advance to the next exercise in the session.

@@ -4,7 +4,8 @@
             [exercise-timer.library :as library]
             [exercise-timer.session :as session]
             [exercise-timer.timer :as timer]
-            [exercise-timer.format :as format]))
+            [exercise-timer.format :as format]
+            [exercise-timer.speech :as speech]))
 
 ;; ============================================================================
 ;; Global App State
@@ -20,7 +21,8 @@
      :ui {:show-add-exercise false
           :show-import-dialog false
           :import-conflicts nil
-          :session-duration-minutes 5}}))  ; Default session duration
+          :session-duration-minutes 5
+          :speech-enabled true}}))     ; Speech announcements enabled by default
 
 ;; ============================================================================
 ;; State Update Functions
@@ -113,6 +115,7 @@
 (defn configuration-panel []
   (let [ui (:ui @app-state)
         duration (:session-duration-minutes ui)
+        speech-enabled (:speech-enabled ui)
         session-active? (not= :not-started (get-in @app-state [:timer-state :session-state]))]
     [:div.configuration-panel
      [:h2 "Session Configuration"]
@@ -125,13 +128,25 @@
                :value duration
                :disabled session-active?
                :on-change #(update-ui! {:session-duration-minutes (js/parseInt (-> % .-target .-value))})}]]
+     
+     ;; Speech toggle
+     (when (speech/speech-available?)
+       [:div.form-group
+        [:label
+         [:input {:type "checkbox"
+                  :checked speech-enabled
+                  :on-change #(update-ui! {:speech-enabled (-> % .-target .-checked)})}]
+         " 🔊 Voice announcements (exercise names + time every 10s)"]])
+     
      [:button {:on-click (fn []
                            (let [exercises (:exercises @app-state)
                                  config (session/make-session-config duration)
                                  session-plan (session/generate-session config exercises)]
                              (update-current-session! session-plan)
                              (timer/initialize-session! session-plan)
-                             (update-timer-state! (timer/get-state))))
+                             (update-timer-state! (timer/get-state))
+                             ;; Reset speech announcement tracking for new session
+                             (speech/reset-announcement-tracking!)))
                :disabled (or session-active? (empty? (:exercises @app-state)))}
       "Start Session"]]))
 
@@ -259,18 +274,32 @@
   
   ;; Update UI on every tick
   (timer/on-tick
-   (fn [_remaining]
-     (update-timer-state! (timer/get-state))))
+   (fn [remaining]
+     (update-timer-state! (timer/get-state))
+     ;; Announce time every 10 seconds if speech enabled
+     (when (and (get-in @app-state [:ui :speech-enabled])
+                (speech/should-announce-time? remaining))
+       (speech/speak-time-remaining! remaining))))
   
   ;; Update UI when exercise changes
   (timer/on-exercise-change
    (fn [_new-index]
-     (update-timer-state! (timer/get-state))))
+     (update-timer-state! (timer/get-state))
+     ;; Announce new exercise name and duration if speech enabled
+     (when (get-in @app-state [:ui :speech-enabled])
+       (when-let [current-ex (get-current-exercise)]
+         (let [ex-name (get-in current-ex [:exercise :name])
+               duration-seconds (:duration-seconds current-ex)]
+               (println current-ex duration-seconds)
+           (speech/speak-exercise-start! ex-name duration-seconds))))))
   
   ;; Update UI when session completes
   (timer/on-complete
    (fn []
-     (update-timer-state! (timer/get-state)))))
+     (update-timer-state! (timer/get-state))
+     ;; Announce completion if speech enabled
+     (when (get-in @app-state [:ui :speech-enabled])
+       (speech/speak-completion!)))))
 
 ;; ============================================================================
 ;; App Initialization
