@@ -247,7 +247,7 @@
 (defn app []
   [:div.app-container
    [:header
-    [:h1 "Exercise Timer App"]]
+    [:h1 "Sweat Roulette"]]
    
    [:main
     [:div.session-area
@@ -290,7 +290,6 @@
        (when-let [current-ex (get-current-exercise)]
          (let [ex-name (get-in current-ex [:exercise :name])
                duration-seconds (:duration-seconds current-ex)]
-               (println current-ex duration-seconds)
            (speech/speak-exercise-start! ex-name duration-seconds))))))
   
   ;; Update UI when session completes
