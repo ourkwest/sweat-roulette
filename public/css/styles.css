@@ -215,6 +215,17 @@ button:disabled {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  transition: opacity 0.3s;
+}
+
+.exercise-item.disabled {
+  opacity: 0.5;
+}
+
+.exercise-item .exercise-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .exercise-item .exercise-name {
@@ -226,6 +237,49 @@ button:disabled {
 .exercise-item .exercise-weight {
   font-size: 0.9rem;
   color: #7f8c8d;
+}
+
+.exercise-item .exercise-controls {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.exercise-item .weight-btn {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 5px 10px;
+  font-size: 18px;
+  font-weight: bold;
+  background: #3498db;
+}
+
+.exercise-item .weight-btn:hover:not(:disabled) {
+  background: #2980b9;
+}
+
+.exercise-item .toggle-btn {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 5px 10px;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.exercise-item .toggle-btn.enabled {
+  background: #2ecc71;
+}
+
+.exercise-item .toggle-btn.enabled:hover {
+  background: #27ae60;
+}
+
+.exercise-item .toggle-btn.disabled {
+  background: #e74c3c;
+}
+
+.exercise-item .toggle-btn.disabled:hover {
+  background: #c0392b;
 }
 
 .library-actions {

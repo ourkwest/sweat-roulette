@@ -139,15 +139,18 @@
          " 🔊 Voice announcements (exercise names + time every 10s)"]])
      
      [:button {:on-click (fn []
-                           (let [exercises (:exercises @app-state)
+                           (let [all-exercises (:exercises @app-state)
+                                 enabled-exercises (vec (filter #(:enabled % true) all-exercises))
                                  config (session/make-session-config duration)
-                                 session-plan (session/generate-session config exercises)]
+                                 session-plan (session/generate-session config enabled-exercises)]
                              (update-current-session! session-plan)
                              (timer/initialize-session! session-plan)
                              (update-timer-state! (timer/get-state))
                              ;; Reset speech announcement tracking for new session
                              (speech/reset-announcement-tracking!)))
-               :disabled (or session-active? (empty? (:exercises @app-state)))}
+               :disabled (or session-active? 
+                            (empty? (:exercises @app-state))
+                            (empty? (filter #(:enabled % true) (:exercises @app-state))))}
       "Start Session"]]))
 
 ;; Exercise Display Component
@@ -225,13 +228,35 @@
     [:div.exercise-library-panel
      [:h2 "Exercise Library"]
      [:div.library-stats
-      (str (count exercises) " exercises")]
+      (str (count exercises) " exercises"
+           " (" (count (filter #(:enabled % true) exercises)) " enabled)")]
      [:div.exercise-list
       (for [ex exercises]
-        ^{:key (:name ex)}
-        [:div.exercise-item
-         [:span.exercise-name (:name ex)]
-         [:span.exercise-weight (str "Weight: " (:weight ex))]])]
+        (let [enabled? (:enabled ex true)
+              ex-name (:name ex)
+              ex-weight (:weight ex)]
+          ^{:key ex-name}
+          [:div.exercise-item {:class (when-not enabled? "disabled")}
+           [:div.exercise-info
+            [:span.exercise-name ex-name]
+            [:span.exercise-weight (str "Weight: " ex-weight)]]
+           [:div.exercise-controls
+            [:button.weight-btn {:on-click #(do
+                                              (library/update-exercise-weight! ex-name (max 0.5 (- ex-weight 0.1)))
+                                              (update-exercises! (library/load-library)))
+                                 :title "Decrease weight"}
+             "−"]
+            [:button.weight-btn {:on-click #(do
+                                              (library/update-exercise-weight! ex-name (min 2.0 (+ ex-weight 0.1)))
+                                              (update-exercises! (library/load-library)))
+                                 :title "Increase weight"}
+             "+"]
+            [:button.toggle-btn {:on-click #(do
+                                              (library/toggle-exercise-enabled! ex-name)
+                                              (update-exercises! (library/load-library)))
+                                 :class (if enabled? "enabled" "disabled")
+                                 :title (if enabled? "Exclude from sessions" "Include in sessions")}
+             (if enabled? "✓" "✗")]]]))]
      [:div.library-actions
       [:button {:on-click #(library/export-and-download!)}
        "Export Library"]

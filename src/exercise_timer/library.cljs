@@ -637,3 +637,76 @@
     (if (contains? save-result :ok)
       {:ok (dissoc merge-result :merged-library)}
       save-result)))
+
+;; ============================================================================
+;; Exercise Update Operations
+;; ============================================================================
+
+(defn update-exercise-weight!
+  "Update the weight of an exercise by name.
+   
+   Parameters:
+   - exercise-name: string name of the exercise to update
+   - new-weight: new weight value (must be between 0.5 and 2.0)
+   
+   Returns:
+   - {:ok exercise} on success with updated exercise
+   - {:error \"message\"} on validation failure or if exercise not found
+   
+   Side effects:
+   - Updates library-state atom
+   - Persists to localStorage"
+  [exercise-name new-weight]
+  (cond
+    (not (valid-weight? new-weight))
+    {:error "Weight must be between 0.5 and 2.0"}
+    
+    (not (exercise-exists? exercise-name))
+    {:error (str "Exercise '" exercise-name "' not found")}
+    
+    :else
+    (let [updated-library (mapv (fn [ex]
+                                  (if (= (:name ex) exercise-name)
+                                    (assoc ex :weight new-weight)
+                                    ex))
+                                @library-state)
+          save-result (save-library! updated-library)]
+      (if (contains? save-result :ok)
+        {:ok (first (filter #(= (:name %) exercise-name) updated-library))}
+        save-result))))
+
+(defn toggle-exercise-enabled!
+  "Toggle the enabled/disabled status of an exercise.
+   Disabled exercises are excluded from session generation.
+   
+   Parameters:
+   - exercise-name: string name of the exercise to toggle
+   
+   Returns:
+   - {:ok exercise} on success with updated exercise
+   - {:error \"message\"} if exercise not found
+   
+   Side effects:
+   - Updates library-state atom
+   - Persists to localStorage"
+  [exercise-name]
+  (if (not (exercise-exists? exercise-name))
+    {:error (str "Exercise '" exercise-name "' not found")}
+    (let [updated-library (mapv (fn [ex]
+                                  (if (= (:name ex) exercise-name)
+                                    (assoc ex :enabled (not (:enabled ex true)))
+                                    ex))
+                                @library-state)
+          save-result (save-library! updated-library)]
+      (if (contains? save-result :ok)
+        {:ok (first (filter #(= (:name %) exercise-name) updated-library))}
+        save-result))))
+
+(defn get-enabled-exercises
+  "Get only the enabled exercises from the library.
+   Exercises without an :enabled key are considered enabled by default.
+   
+   Returns:
+   - Vector of enabled exercises"
+  []
+  (filterv #(:enabled % true) @library-state))
