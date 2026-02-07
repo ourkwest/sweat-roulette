@@ -618,9 +618,11 @@
                               exercises))
         
         ;; Step 3: Determine number of exercises to select
-        ;; For now, we'll use all filtered exercises from the library once
-        ;; This ensures variety and uses the entire filtered library
-        num-exercises (count filtered-exercises)
+        ;; Aim for approximately 60 seconds per exercise for better workout pacing
+        ;; Use at least 3 exercises for variety, but cap at available exercises
+        target-avg-duration 60
+        ideal-num-exercises (max 3 (int (/ total-duration-seconds target-avg-duration)))
+        num-exercises (min ideal-num-exercises (count filtered-exercises))
         
         ;; Step 4: Select exercises using round-robin without repetition
         selected-exercises (select-exercises-round-robin filtered-exercises num-exercises)
@@ -628,9 +630,41 @@
         ;; Step 5: Distribute time across exercises based on difficulties
         exercises-with-durations (distribute-time-by-difficulty selected-exercises total-duration-seconds)
         
+        ;; Step 5.5: Apply minimum constraint and redistribute excess time
+        ;; If any exercise is below 20s, bring it up to 20s and redistribute the added time
+        ;; by reducing other exercises proportionally
+        constrained-exercises (let [below-min (filter #(< (:duration-seconds %) min-exercise-duration-seconds) exercises-with-durations)]
+                                (if (empty? below-min)
+                                  exercises-with-durations
+                                  (let [;; Calculate how much time we need to add
+                                        time-deficit (reduce + (map #(- min-exercise-duration-seconds (:duration-seconds %)) below-min))
+                                        ;; Bring all below-min exercises up to minimum
+                                        with-mins (mapv (fn [ex]
+                                                          (if (< (:duration-seconds ex) min-exercise-duration-seconds)
+                                                            (assoc ex :duration-seconds min-exercise-duration-seconds)
+                                                            ex))
+                                                        exercises-with-durations)
+                                        ;; Find exercises that can be reduced (above minimum)
+                                        reducible (filter #(> (:duration-seconds %) min-exercise-duration-seconds) with-mins)
+                                        total-reducible-time (reduce + (map #(- (:duration-seconds %) min-exercise-duration-seconds) reducible))]
+                                    (if (or (empty? reducible) (zero? total-reducible-time))
+                                      ;; Can't redistribute, just return with minimums applied
+                                      with-mins
+                                      ;; Redistribute the deficit proportionally from reducible exercises
+                                      (mapv (fn [ex]
+                                              (if (> (:duration-seconds ex) min-exercise-duration-seconds)
+                                                (let [reducible-amount (- (:duration-seconds ex) min-exercise-duration-seconds)
+                                                      proportion (/ reducible-amount total-reducible-time)
+                                                      reduction (* time-deficit proportion)
+                                                      new-duration (max min-exercise-duration-seconds
+                                                                       (int (- (:duration-seconds ex) reduction)))]
+                                                  (assoc ex :duration-seconds new-duration))
+                                                ex))
+                                            with-mins)))))
+        
         ;; Step 6: Split exercises exceeding 2 minutes into multiple occurrences
         ;; This enforces the maximum duration constraint of 120 seconds
-        split-exercises (split-long-exercises exercises-with-durations)
+        split-exercises (split-long-exercises constrained-exercises)
         
         ;; Step 7: Calculate final total duration (should equal original due to time conservation in splitting)
         final-total (reduce + (map :duration-seconds split-exercises))

@@ -706,31 +706,32 @@
 ;; ============================================================================
 
 (defn app []
-  [:div.app-container
-   [:header
-    [:h1 "Sweat Roulette"]]
-   
-   [:main#main-content
-    (if (:current-session @app-state)
-      ;; Active session view - show only the workout
-      [:div.session-area
-       [:div.active-session
-        [exercise-display]
-        [timer-display]
-        [progress-bar]
-        [control-panel]
-        [completion-screen]]]
-      
-      ;; Setup view - show configuration and library
-      [:div.setup-view
-       [:div.session-area
-        [configuration-panel]]
-       [:div.library-area
-        [exercise-library-panel]]])]
-   
-   ;; Modals
-   [exercise-dialog]
-   [import-conflict-dialog]])
+  (let [session (:current-session @app-state)
+        progress-pct (if session (timer/calculate-progress-percentage) 0)]
+    [:div.app-container
+     [:header {:style {:background (str "linear-gradient(to right, #2ecc71 0%, #2ecc71 " progress-pct "%, #2c3e50 " progress-pct "%, #2c3e50 100%)")}}
+      [:h1 "Sweat Roulette"]]
+     
+     [:main#main-content
+      (if session
+        ;; Active session view - show only the workout
+        [:div.session-area
+         [:div.active-session
+          [exercise-display]
+          [timer-display]
+          [control-panel]
+          [completion-screen]]]
+        
+        ;; Setup view - show configuration and library
+        [:div.setup-view
+         [:div.session-area
+          [configuration-panel]]
+         [:div.library-area
+          [exercise-library-panel]]])]
+     
+     ;; Modals
+     [exercise-dialog]
+     [import-conflict-dialog]]))
 
 ;; ============================================================================
 ;; Timer Callbacks
