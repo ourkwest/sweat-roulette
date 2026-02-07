@@ -709,7 +709,8 @@
   (let [session (:current-session @app-state)
         progress-pct (if session (timer/calculate-progress-percentage) 0)]
     [:div.app-container
-     [:header {:style {:background (str "linear-gradient(to right, #ff1493 0%, #ffff00 " (/ progress-pct 2) "%, #00ff00 " progress-pct "%, #2c3e50 " progress-pct "%, #2c3e50 100%)")}}
+     [:header.session-header {:class (when session "active")}
+      [:div.progress-fill {:style (when session {:width (str progress-pct "%")})}]
       [:h1 "Sweat Roulette"]
       (when session
         (let [timer-state (:timer-state @app-state)
