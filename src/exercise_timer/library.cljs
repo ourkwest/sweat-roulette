@@ -235,7 +235,7 @@
    {:name "Plank Shoulder Taps" :difficulty 1.4 :equipment []}
    {:name "Dumbbell Bicep Curls" :difficulty 1.2 :equipment ["Dumbbells"]}
    {:name "Dumbbell Shoulder Press" :difficulty 1.4 :equipment ["Dumbbells"]}
-   {:name "Dumbbell Rows" :difficulty 1.3 :equipment ["Dumbbells"]}
+   {:name "Dumbbell Rows" :difficulty 1.3 :equipment ["Dumbbells", "A bench"]}
    {:name "Dumbbell Goblet Squats" :difficulty 1.3 :equipment ["Dumbbells"]}
    {:name "Dumbbell Chest Press" :difficulty 1.5 :equipment ["Dumbbells", "A bench"]}
    {:name "Dumbbell Lateral Raises" :difficulty 1.1 :equipment ["Dumbbells"]}])

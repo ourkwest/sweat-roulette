@@ -346,7 +346,7 @@
                 :disabled (or session-active? 
                              (empty? (:exercises @app-state))
                              (empty? (filter #(:enabled % true) (:exercises @app-state))))}
-       "Start Session"]
+       "Start"]
       
       ;; Speech toggle
       (when (speech/speech-available?)
@@ -526,7 +526,7 @@
      [:div.library-actions
       [:button {:on-click #(library/export-and-download!)
                 :aria-label "Export exercise library to JSON file"}
-       "Export Library"]
+       "Export"]
       [:label.import-button
        [:input {:type "file"
                 :accept ".json"
@@ -536,7 +536,7 @@
                              (set! (-> % .-target .-value) ""))}]
        [:button {:on-click #(.click (-> % .-target .-previousSibling))
                  :aria-label "Import exercise library from JSON file"}
-        "Import Library"]]
+        "Import"]]
       [:button {:on-click #(update-ui! {:show-edit-exercise true
                                         :edit-exercise-name ""
                                         :edit-exercise-original-name ""
@@ -545,14 +545,13 @@
                                         :edit-exercise-enabled true
                                         :edit-exercise-error nil})
                 :aria-label "Add new exercise to library"}
-       "Add Exercise"]
+       "Add"]
       [:button {:on-click #(when (js/confirm "Reset all data and restore default exercises? This cannot be undone.")
                              (library/clear-library-for-testing!)
                              (update-exercises! (library/load-library)))
                 :aria-label "Reset all data to defaults"
                 :style {:background "#e74c3c"}}
        "Reset Data"]]]))
-
 ;; Exercise Dialog Component
 (defn exercise-dialog []
   (let [ui (:ui @app-state)
@@ -579,7 +578,7 @@
             
             ;; Dialog configuration
             title (if is-new? "Add New Exercise" "Edit Exercise")
-            button-text (if is-new? "Add Exercise" "Save Changes")
+            button-text "Save"
             
             ;; Close handler
             close-fn #(update-ui! {:show-edit-exercise false
