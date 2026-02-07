@@ -44,6 +44,19 @@ main {
   gap: 20px;
 }
 
+/* Setup view - two column layout */
+.setup-view {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  width: 100%;
+}
+
+/* Session area - full width when active */
+.session-area {
+  width: 100%;
+}
+
 /* Configuration Panel */
 .configuration-panel {
   background: #ecf0f1;

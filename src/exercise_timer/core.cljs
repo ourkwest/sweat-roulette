@@ -422,7 +422,7 @@
           "Start"]
          
          :running
-         [:div
+         [:<>
           [:button {:on-click #(do (timer/pause!)
                                    (update-timer-state! (timer/get-state)))
                     :aria-label "Pause workout (Spacebar)"}
@@ -430,14 +430,29 @@
           [:button {:on-click #(do (timer/skip-exercise!)
                                    (update-timer-state! (timer/get-state)))
                     :aria-label "Skip current exercise"}
-           "Skip"]]
+           "Skip"]
+          [:button {:on-click #(do (timer/restart!)
+                                   (update-timer-state! (timer/get-state)))
+                   :aria-label "Restart workout (R key)"}
+           "Restart"]
+          [:button {:on-click #(timer/search-exercise)
+                    :aria-label "Search for current exercise instructions"}
+           "Search Exercise"]]
          
          :paused
-         [:div
+         [:<>
           [:button {:on-click #(do (timer/start!)
                                    (update-timer-state! (timer/get-state)))
                     :aria-label "Resume workout (Spacebar)"}
            "Resume"]
+          [:button {:on-click #(do (timer/skip-exercise!)
+                                   (update-timer-state! (timer/get-state)))
+                    :aria-label "Skip current exercise"}
+           "Skip"]
+          [:button {:on-click #(do (timer/restart!)
+                                   (update-timer-state! (timer/get-state)))
+                   :aria-label "Restart workout (R key)"}
+           "Restart"]
           [:button {:on-click #(timer/search-exercise)
                     :aria-label "Search for current exercise instructions"}
            "Search Exercise"]]
@@ -447,11 +462,12 @@
          
          nil)
        
-       [:button {:on-click #(do (timer/restart!)
-                                (update-timer-state! (timer/get-state)))
-                 :disabled (= state-keyword :not-started)
-                 :aria-label "Restart workout (R key)"}
-        "Restart"]])))
+       ;; Back/Cancel button to return to setup view
+       [:button {:on-click #(do (timer/pause!)
+                                (update-current-session! nil)
+                                (update-timer-state! (timer/make-timer-state)))
+                 :aria-label "Cancel session and return to setup"}
+        "Cancel Session"]])))
 
 ;; Completion Screen Component
 (defn completion-screen []
@@ -687,19 +703,22 @@
     [:h1 "Sweat Roulette"]]
    
    [:main#main-content
-    [:div.session-area
-     [configuration-panel]
-     
-     (when (:current-session @app-state)
+    (if (:current-session @app-state)
+      ;; Active session view - show only the workout
+      [:div.session-area
        [:div.active-session
         [exercise-display]
         [timer-display]
         [progress-bar]
         [control-panel]
-        [completion-screen]])]
-    
-    [:div.library-area
-     [exercise-library-panel]]]
+        [completion-screen]]]
+      
+      ;; Setup view - show configuration and library
+      [:div.setup-view
+       [:div.session-area
+        [configuration-panel]]
+       [:div.library-area
+        [exercise-library-panel]]])]
    
    ;; Modals
    [exercise-dialog]
