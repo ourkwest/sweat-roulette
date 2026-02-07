@@ -4,7 +4,23 @@ This guide explains how to deploy the Exercise Timer App to various hosting plat
 
 ## Production Build
 
-First, create the production build:
+### Quick Build (Recommended)
+
+Use the provided build script:
+
+```bash
+./build.sh
+```
+
+This script will:
+1. Compile the ClojureScript to optimized JavaScript
+2. Clean the `docs/` directory
+3. Copy all files from `public/` to `docs/`
+4. Add `.nojekyll` file for GitHub Pages
+
+### Manual Build
+
+Alternatively, build manually:
 
 ```bash
 npx shadow-cljs release app
@@ -15,19 +31,45 @@ This creates an optimized build in the `public/` directory:
 - `public/css/styles.css` - Styles
 - `public/js/main.js` - Optimized JavaScript (312KB)
 
+For GitHub Pages deployment, copy to `docs/`:
+```bash
+cp -r public/* docs/
+```
+
 ## Deployment Options
 
 ### 1. GitHub Pages
 
+**Option A: Using build.sh (Recommended)**
+```bash
+# Build and prepare for GitHub Pages
+./build.sh
+
+# Commit and push
+git add docs/
+git commit -m "Deploy to GitHub Pages"
+git push
+```
+
+**Option B: Manual deployment**
 ```bash
 # Build the app
 npx shadow-cljs release app
 
-# Push the public/ directory to gh-pages branch
-git subtree push --prefix public origin gh-pages
+# Copy to docs directory
+cp -r public/* docs/
+
+# Push to repository
+git add docs/
+git commit -m "Deploy to GitHub Pages"
+git push
 ```
 
-Then enable GitHub Pages in your repository settings, pointing to the `gh-pages` branch.
+Then enable GitHub Pages in your repository settings:
+- Go to Settings → Pages
+- Set source to "Deploy from a branch"
+- Select `main` branch and `/docs` folder
+- Save
 
 ### 2. Netlify
 

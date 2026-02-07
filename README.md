@@ -41,18 +41,14 @@ npx shadow-cljs compile test
 ### Production Build
 
 ```bash
-# Easy way: Use the build script
+# Easy way: Use the build script (recommended)
 ./build.sh
 
 # Manual way:
-# 1. Copy source files
-cp src/public/index.html docs/
-cp -r src/public/css docs/
+npx shadow-cljs release app
+cp -r public/* docs/
 
-# 2. Build JavaScript
-npx shadow-cljs release release
-
-# The app is now ready in the docs/ directory (313KB optimized)
+# The app is now ready in the docs/ directory (312KB optimized)
 ```
 
 ### Deploying to GitHub Pages
