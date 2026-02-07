@@ -53,8 +53,26 @@
     (catch js/Error e
       {:error (str "Failed to write to storage: " (.-message e))})))
 
+(defn- migrate-exercise
+  "Migrate an exercise to the current schema version.
+   Adds default equipment field if missing (backward compatibility).
+   
+   Parameters:
+   - exercise: Exercise map to migrate
+   
+   Returns:
+   - Migrated exercise map with all required fields
+   
+   Validates: Requirements 6.5"
+  [exercise]
+  (if (contains? exercise :equipment)
+    exercise
+    ;; Add default equipment for backward compatibility
+    (assoc exercise :equipment ["None"])))
+
 (defn- read-from-storage
   "Read data from localStorage with JSON deserialization.
+   Handles backward compatibility by migrating old data format.
    
    Returns:
    - {:ok exercises} on success with vector of exercises
@@ -69,7 +87,8 @@
           (let [parsed (js->clj (js/JSON.parse json-str) :keywordize-keys true)
                 exercises (:exercises parsed)]
             (if (vector? exercises)
-              {:ok exercises}
+              ;; Migrate exercises to ensure equipment field exists
+              {:ok (mapv migrate-exercise exercises)}
               {:error "Invalid storage format: exercises must be a vector"}))
           (catch js/Error e
             {:error (str "Failed to parse storage data: " (.-message e))}))
@@ -118,13 +137,13 @@
 ;; Exercise Data Structure and Validation
 ;; ============================================================================
 
-(defn valid-weight?
-  "Check if weight is within valid range (0.5 to 2.0 inclusive).
+(defn valid-difficulty?
+  "Check if difficulty is within valid range (0.5 to 2.0 inclusive).
    Validates: Requirements 6.3, 7.3"
-  [weight]
-  (and (number? weight)
-       (>= weight 0.5)
-       (<= weight 2.0)))
+  [difficulty]
+  (and (number? difficulty)
+       (>= difficulty 0.5)
+       (<= difficulty 2.0)))
 
 (defn valid-name?
   "Check if name is non-empty string.
@@ -133,30 +152,41 @@
   (and (string? name)
        (not (empty? (clojure.string/trim name)))))
 
+(defn valid-equipment?
+  "Check if equipment is a valid vector.
+   Validates: Requirements 7.4"
+  [equipment]
+  (vector? equipment))
+
 (defn make-exercise
-  "Create an exercise with name and weight.
+  "Create an exercise with name, difficulty, and equipment.
    Returns exercise map if valid, or error map if invalid.
    
    Parameters:
    - name: Non-empty string, must be unique in library
-   - weight: Number between 0.5 and 2.0 inclusive
+   - difficulty: Number between 0.5 and 2.0 inclusive
+   - equipment: Vector of equipment type strings (e.g., [\"None\"], [\"A wall\"])
    
    Returns:
-   - {:exercise {:name \"...\" :weight N}} on success
+   - {:exercise {:name \"...\" :difficulty N :equipment [...]}} on success
    - {:error \"message\"} on validation failure
    
-   Validates: Requirements 6.2, 6.3, 6.4, 7.2, 7.3"
-  [name weight]
+   Validates: Requirements 6.2, 6.3, 6.4, 7.2, 7.3, 7.4"
+  [name difficulty equipment]
   (cond
     (not (valid-name? name))
     {:error "Exercise name must be a non-empty string"}
     
-    (not (valid-weight? weight))
-    {:error "Exercise weight must be between 0.5 and 2.0"}
+    (not (valid-difficulty? difficulty))
+    {:error "Exercise difficulty must be between 0.5 and 2.0"}
+    
+    (not (valid-equipment? equipment))
+    {:error "Exercise equipment must be a vector"}
     
     :else
     {:exercise {:name (clojure.string/trim name)
-                :weight weight}}))
+                :difficulty difficulty
+                :equipment equipment}}))
 
 ;; ============================================================================
 ;; Library State Management
@@ -166,46 +196,65 @@
   (atom []))
 
 ;; ============================================================================
+;; Sorting Utility
+;; ============================================================================
+
+(defn sort-by-name
+  "Sort exercises alphabetically by name in ascending order.
+   
+   Parameters:
+   - exercises: vector of exercise maps
+   
+   Returns:
+   - Vector of exercises sorted alphabetically by name
+   
+   Validates: Requirements 6.7"
+  [exercises]
+  (vec (sort-by :name exercises)))
+
+;; ============================================================================
 ;; Default Exercise Initialization
 ;; ============================================================================
 
 (def ^:private default-exercises
   "Default set of exercises to initialize the library.
    Validates: Requirements 6.1, 6.6"
-  [{:name "Push-ups" :weight 1.2}
-   {:name "Squats" :weight 1.0}
-   {:name "Plank" :weight 1.5}
-   {:name "Jumping Jacks" :weight 0.8}
-   {:name "Lunges" :weight 1.0}
-   {:name "Mountain Climbers" :weight 1.3}
-   {:name "Burpees" :weight 1.8}
-   {:name "High Knees" :weight 0.9}
-   {:name "Sit-ups" :weight 1.0}
-   {:name "Wall Sit" :weight 1.4}
-   {:name "Russian Twists" :weight 1.1}
-   {:name "Kneel to Stand" :weight 1.6}
-   {:name "Air Punches" :weight 0.7}
-   {:name "Plank Shoulder Taps" :weight 1.4}])
+  [{:name "Push-ups" :difficulty 1.2 :equipment ["None"]}
+   {:name "Squats" :difficulty 1.0 :equipment ["None"]}
+   {:name "Plank" :difficulty 1.5 :equipment ["None"]}
+   {:name "Jumping Jacks" :difficulty 0.8 :equipment ["None"]}
+   {:name "Lunges" :difficulty 1.0 :equipment ["None"]}
+   {:name "Mountain Climbers" :difficulty 1.3 :equipment ["None"]}
+   {:name "Burpees" :difficulty 1.8 :equipment ["None"]}
+   {:name "High Knees" :difficulty 0.9 :equipment ["None"]}
+   {:name "Sit-ups" :difficulty 1.0 :equipment ["None"]}
+   {:name "Wall Sit" :difficulty 1.4 :equipment ["A wall"]}
+   {:name "Russian Twists" :difficulty 1.1 :equipment ["None"]}
+   {:name "Kneel to Stand" :difficulty 1.6 :equipment ["None"]}
+   {:name "Air Punches" :difficulty 0.7 :equipment ["None"]}
+   {:name "Plank Shoulder Taps" :difficulty 1.4 :equipment ["None"]}])
 
 (defn initialize-defaults!
   "Initialize the exercise library with default exercises.
    This function should be called on first run when the library is empty.
+   Default exercises are sorted alphabetically by name.
    
    Returns:
    - {:ok true :count N} on success with number of exercises initialized
    - {:error \"message\"} on failure
    
    Side effects:
-   - Updates library-state atom with default exercises
+   - Updates library-state atom with default exercises (sorted)
    - Persists to localStorage
    
-   Validates: Requirements 6.1, 6.6"
+   Validates: Requirements 6.1, 6.6, 6.7"
   []
-  (reset! library-state default-exercises)
-  (let [save-result (write-to-storage! default-exercises)]
-    (if (contains? save-result :ok)
-      {:ok true :count (count default-exercises)}
-      save-result)))
+  (let [sorted-defaults (sort-by-name default-exercises)]
+    (reset! library-state sorted-defaults)
+    (let [save-result (write-to-storage! sorted-defaults)]
+      (if (contains? save-result :ok)
+        {:ok true :count (count sorted-defaults)}
+        save-result))))
 
 ;; ============================================================================
 ;; Library CRUD Operations
@@ -214,16 +263,17 @@
 (defn load-library
   "Load exercises from local storage into memory.
    If storage is empty or unavailable, initializes with default exercises.
+   Returns exercises sorted alphabetically by name.
    
    Returns:
-   - Vector of exercises on success
-   - Vector of default exercises if storage is empty (first run)
+   - Vector of exercises sorted by name on success
+   - Vector of default exercises sorted by name if storage is empty (first run)
    
    Side effects:
-   - Updates library-state atom with loaded exercises
+   - Updates library-state atom with loaded exercises (sorted)
    - Initializes defaults on first run
    
-   Validates: Requirements 6.1, 6.5, 6.6"
+   Validates: Requirements 6.1, 6.5, 6.6, 6.7"
   []
   (let [result (read-from-storage)]
     (if (contains? result :ok)
@@ -233,10 +283,10 @@
           (do
             (initialize-defaults!)
             @library-state)
-          ;; Normal case: return loaded exercises
-          (do
-            (reset! library-state exercises)
-            exercises)))
+          ;; Normal case: return loaded exercises sorted by name
+          (let [sorted-exercises (sort-by-name exercises)]
+            (reset! library-state sorted-exercises)
+            sorted-exercises)))
       ;; Storage doesn't exist or failed to read
       ;; Only initialize defaults if in-memory state is also empty
       (if (empty? @library-state)
@@ -248,6 +298,7 @@
 
 (defn save-library!
   "Save current library state to local storage.
+   Exercises are sorted alphabetically by name before saving.
    
    Parameters:
    - exercises: Vector of exercise maps to save
@@ -257,23 +308,24 @@
    - {:error \"message\"} on failure
    
    Side effects:
-   - Updates library-state atom
-   - Writes to localStorage
+   - Updates library-state atom with sorted exercises
+   - Writes sorted exercises to localStorage
    
-   Validates: Requirements 6.5, 7.5"
+   Validates: Requirements 6.5, 6.7, 7.5"
   [exercises]
-  (reset! library-state exercises)
-  (write-to-storage! exercises))
+  (let [sorted-exercises (sort-by-name exercises)]
+    (reset! library-state sorted-exercises)
+    (write-to-storage! sorted-exercises)))
 
 (defn get-all-exercises
-  "Get all exercises from current library state.
+  "Get all exercises from current library state, sorted alphabetically by name.
    
    Returns:
-   - Vector of all exercises in the library
+   - Vector of all exercises in the library, sorted by name
    
-   Validates: Requirements 6.1"
+   Validates: Requirements 6.1, 6.7"
   []
-  @library-state)
+  (sort-by-name @library-state))
 
 (defn exercise-exists?
   "Check if an exercise with the given name exists in the library.
@@ -295,7 +347,7 @@
   "Add a new exercise to the library with validation.
    
    Parameters:
-   - exercise: Exercise map with :name and :weight keys
+   - exercise: Exercise map with :name, :difficulty, and optionally :equipment keys
    
    Returns:
    - {:ok exercise} on success
@@ -307,15 +359,21 @@
    
    Validates: Requirements 6.4, 7.1, 7.2, 7.3, 7.4, 7.5"
   [exercise]
-  (let [{:keys [name weight]} exercise]
+  (let [{:keys [name difficulty equipment]} exercise
+        ;; Default equipment to ["None"] if not provided
+        equipment (or equipment ["None"])]
     (cond
       ;; Validate name
       (not (valid-name? name))
       {:error "Exercise name must be a non-empty string"}
       
-      ;; Validate weight
-      (not (valid-weight? weight))
-      {:error "Exercise weight must be between 0.5 and 2.0"}
+      ;; Validate difficulty
+      (not (valid-difficulty? difficulty))
+      {:error "Exercise difficulty must be between 0.5 and 2.0"}
+      
+      ;; Validate equipment
+      (not (valid-equipment? equipment))
+      {:error "Exercise equipment must be a vector"}
       
       ;; Check for duplicate name
       (exercise-exists? name)
@@ -324,7 +382,8 @@
       ;; All validations passed, add exercise
       :else
       (let [trimmed-exercise {:name (clojure.string/trim name)
-                              :weight weight}
+                              :difficulty difficulty
+                              :equipment equipment}
             updated-library (conj @library-state trimmed-exercise)
             save-result (save-library! updated-library)]
         (if (contains? save-result :ok)
@@ -427,12 +486,13 @@
 
 (defn- validate-import-exercise
   "Validate a single exercise from import data.
+   Handles backward compatibility by adding default equipment if missing.
    
    Parameters:
    - exercise: exercise map to validate
    
    Returns:
-   - {:ok exercise} if valid
+   - {:ok exercise} if valid (with equipment field added if missing)
    - {:error \"message\"} if invalid
    
    Validates: Requirements 11.4"
@@ -444,17 +504,25 @@
     (not (contains? exercise :name))
     {:error "Exercise missing required field: name"}
     
-    (not (contains? exercise :weight))
-    {:error "Exercise missing required field: weight"}
+    (not (contains? exercise :difficulty))
+    {:error "Exercise missing required field: difficulty"}
     
     (not (valid-name? (:name exercise)))
     {:error (str "Invalid exercise name: " (:name exercise))}
     
-    (not (valid-weight? (:weight exercise)))
-    {:error (str "Invalid exercise weight: " (:weight exercise) " (must be between 0.5 and 2.0)")}
+    (not (valid-difficulty? (:difficulty exercise)))
+    {:error (str "Invalid exercise difficulty: " (:difficulty exercise) " (must be between 0.5 and 2.0)")}
+    
+    ;; Validate equipment if present
+    (and (contains? exercise :equipment)
+         (not (valid-equipment? (:equipment exercise))))
+    {:error (str "Invalid exercise equipment: " (:equipment exercise) " (must be a vector)")}
     
     :else
-    {:ok exercise}))
+    ;; Add default equipment if missing (backward compatibility)
+    {:ok (if (contains? exercise :equipment)
+           exercise
+           (assoc exercise :equipment ["None"]))}))
 
 (defn- validate-import-data
   "Validate imported JSON data structure.
@@ -463,7 +531,7 @@
    - data: parsed JSON data
    
    Returns:
-   - {:ok exercises} if valid with vector of exercises
+   - {:ok exercises} if valid with vector of exercises (with equipment field added if missing)
    - {:error \"message\"} if invalid
    
    Validates: Requirements 11.2, 11.4"
@@ -487,7 +555,8 @@
           validation-results (map validate-import-exercise exercises)
           errors (filter #(contains? % :error) validation-results)]
       (if (empty? errors)
-        {:ok exercises}
+        ;; Extract validated exercises (with equipment field added if missing)
+        {:ok (mapv :ok validation-results)}
         {:error (str "Invalid exercises: " (clojure.string/join ", " (map :error errors)))}))))
 
 (defn parse-import-json
@@ -513,27 +582,37 @@
   "Detect conflicts between imported exercises and existing library.
    
    A conflict occurs when an exercise with the same name exists in both
-   the current library and the import, but with different weights.
+   the current library and the import, but with different difficulties or equipment.
    
    Parameters:
    - imported-exercises: vector of exercises to import
    - existing-exercises: vector of current library exercises
    
    Returns:
-   - vector of conflict maps: [{:name string :existing-weight number :imported-weight number}]
+   - vector of conflict maps: [{:name string :existing-difficulty number :imported-difficulty number 
+                                 :existing-equipment vector :imported-equipment vector}]
    
    Validates: Requirements 11.7, 11.8"
   [imported-exercises existing-exercises]
-  (let [existing-map (into {} (map (fn [ex] [(:name ex) (:weight ex)]) existing-exercises))]
+  (let [existing-map (into {} (map (fn [ex] [(:name ex) ex]) existing-exercises))]
     (reduce
      (fn [conflicts imported-ex]
        (let [name (:name imported-ex)
-             imported-weight (:weight imported-ex)
-             existing-weight (get existing-map name)]
-         (if (and existing-weight (not= existing-weight imported-weight))
-           (conj conflicts {:name name
-                            :existing-weight existing-weight
-                            :imported-weight imported-weight})
+             imported-difficulty (:difficulty imported-ex)
+             imported-equipment (:equipment imported-ex)
+             existing-ex (get existing-map name)]
+         (if existing-ex
+           (let [existing-difficulty (:difficulty existing-ex)
+                 existing-equipment (:equipment existing-ex)]
+             ;; Conflict if difficulty OR equipment differs
+             (if (or (not= existing-difficulty imported-difficulty)
+                     (not= existing-equipment imported-equipment))
+               (conj conflicts {:name name
+                                :existing-difficulty existing-difficulty
+                                :imported-difficulty imported-difficulty
+                                :existing-equipment existing-equipment
+                                :imported-equipment imported-equipment})
+               conflicts))
            conflicts)))
      []
      imported-exercises)))
@@ -542,9 +621,9 @@
   "Merge imported exercises with existing library.
    
    Strategy:
-   - Skip exercises that are identical (same name and weight)
+   - Skip exercises that are identical (same name, difficulty, and equipment)
    - Add exercises with new names
-   - For conflicts (same name, different weight), use the resolution map
+   - For conflicts (same name, different difficulty or equipment), use the resolution map
    
    Parameters:
    - imported-exercises: vector of exercises to import
@@ -563,8 +642,10 @@
                   (let [name (:name imported-ex)
                         existing-ex (get existing-map name)]
                     (cond
-                      ;; Identical exercise, skip
-                      (and existing-ex (= (:weight existing-ex) (:weight imported-ex)))
+                      ;; Identical exercise (same name, difficulty, and equipment), skip
+                      (and existing-ex 
+                           (= (:difficulty existing-ex) (:difficulty imported-ex))
+                           (= (:equipment existing-ex) (:equipment imported-ex)))
                       (update acc :skipped conj name)
                       
                       ;; New exercise, add
@@ -643,15 +724,69 @@
       save-result)))
 
 ;; ============================================================================
+;; Equipment Filtering
+;; ============================================================================
+
+(defn get-equipment-types
+  "Get all unique equipment types from the exercise library.
+   
+   Returns:
+   - Set of equipment type strings from all exercises in the library
+   
+   Example:
+   - If library has exercises with equipment [\"None\"], [\"A wall\"], [\"None\"]
+   - Returns #{\"None\" \"A wall\"}
+   
+   Validates: Requirements 13.1"
+  []
+  (let [exercises @library-state
+        all-equipment (mapcat :equipment exercises)]
+    (set all-equipment)))
+
+(defn filter-by-equipment
+  "Filter exercises to only those requiring equipment in the provided set or \"None\".
+   
+   An exercise is included if ALL of its required equipment types are either:
+   - In the provided equipment-set, OR
+   - Equal to \"None\"
+   
+   Parameters:
+   - exercises: vector of exercise maps
+   - equipment-set: set of equipment type strings that are available
+   
+   Returns:
+   - Vector of exercises that can be performed with the available equipment
+   
+   Example:
+   - exercises: [{:name \"Push-ups\" :equipment [\"None\"]}
+                 {:name \"Wall Sit\" :equipment [\"A wall\"]}
+                 {:name \"Dumbbell Curls\" :equipment [\"Dumbbells\"]}]
+   - equipment-set: #{\"A wall\"}
+   - Returns: [{:name \"Push-ups\" :equipment [\"None\"]}
+               {:name \"Wall Sit\" :equipment [\"A wall\"]}]
+   
+   Validates: Requirements 2.10, 13.3"
+  [exercises equipment-set]
+  (filterv
+   (fn [exercise]
+     (let [required-equipment (:equipment exercise)]
+       ;; Exercise is included if all required equipment is available or is \"None\"
+       (every? (fn [eq]
+                 (or (= eq "None")
+                     (contains? equipment-set eq)))
+               required-equipment)))
+   exercises))
+
+;; ============================================================================
 ;; Exercise Update Operations
 ;; ============================================================================
 
-(defn update-exercise-weight!
-  "Update the weight of an exercise by name.
+(defn update-exercise-difficulty!
+  "Update the difficulty of an exercise by name.
    
    Parameters:
    - exercise-name: string name of the exercise to update
-   - new-weight: new weight value (must be between 0.5 and 2.0)
+   - new-difficulty: new difficulty value (must be between 0.5 and 2.0)
    
    Returns:
    - {:ok exercise} on success with updated exercise
@@ -660,10 +795,10 @@
    Side effects:
    - Updates library-state atom
    - Persists to localStorage"
-  [exercise-name new-weight]
+  [exercise-name new-difficulty]
   (cond
-    (not (valid-weight? new-weight))
-    {:error "Weight must be between 0.5 and 2.0"}
+    (not (valid-difficulty? new-difficulty))
+    {:error "Difficulty must be between 0.5 and 2.0"}
     
     (not (exercise-exists? exercise-name))
     {:error (str "Exercise '" exercise-name "' not found")}
@@ -671,7 +806,7 @@
     :else
     (let [updated-library (mapv (fn [ex]
                                   (if (= (:name ex) exercise-name)
-                                    (assoc ex :weight new-weight)
+                                    (assoc ex :difficulty new-difficulty)
                                     ex))
                                 @library-state)
           save-result (save-library! updated-library)]

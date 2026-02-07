@@ -75,6 +75,36 @@ main {
   font-size: 16px;
 }
 
+/* Equipment Checkboxes */
+.equipment-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.equipment-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  cursor: pointer;
+  user-select: none;
+  min-height: 44px;
+}
+
+.equipment-checkbox input[type="checkbox"] {
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.equipment-checkbox span {
+  font-size: 16px;
+  color: #2c3e50;
+}
+
 /* Buttons */
 button {
   background: #3498db;
@@ -130,6 +160,41 @@ button:disabled {
   font-size: 1.1rem;
 }
 
+/* Difficulty Controls */
+.difficulty-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  margin: 15px 0;
+}
+
+.difficulty-btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 10px 15px;
+  font-size: 20px;
+  font-weight: bold;
+  background: #3498db;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.difficulty-btn:hover:not(:disabled) {
+  background: #2980b9;
+  transform: scale(1.1);
+}
+
+.difficulty-value {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #2c3e50;
+  min-width: 150px;
+  text-align: center;
+}
+
 /* Timer Display */
 .timer-display {
   text-align: center;
@@ -141,6 +206,36 @@ button:disabled {
   font-weight: bold;
   color: #e74c3c;
   font-family: 'Courier New', monospace;
+}
+
+/* Progress Bar */
+.progress-bar-container {
+  width: 100%;
+  height: 30px;
+  background: #ecf0f1;
+  border-radius: 15px;
+  overflow: hidden;
+  position: relative;
+  margin: 20px 0;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3498db 0%, #2ecc71 100%);
+  transition: width 0.3s ease;
+  border-radius: 15px;
+}
+
+.progress-bar-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-weight: bold;
+  color: #2c3e50;
+  font-size: 14px;
+  text-shadow: 0 1px 2px rgba(255,255,255,0.8);
 }
 
 /* Control Panel */
@@ -156,6 +251,16 @@ button:disabled {
 
 .control-panel button {
   margin: 0 10px;
+  min-width: 120px;
+}
+
+.control-panel button:nth-child(2) {
+  /* Skip button - make it visually distinct */
+  background: #f39c12;
+}
+
+.control-panel button:nth-child(2):hover:not(:disabled) {
+  background: #e67e22;
 }
 
 /* Completion Screen */
@@ -245,17 +350,19 @@ button:disabled {
   align-items: center;
 }
 
-.exercise-item .weight-btn {
+.exercise-item .difficulty-btn {
   min-width: 36px;
   min-height: 36px;
   padding: 5px 10px;
   font-size: 18px;
   font-weight: bold;
   background: #3498db;
+  border-radius: 4px;
 }
 
-.exercise-item .weight-btn:hover:not(:disabled) {
+.exercise-item .difficulty-btn:hover:not(:disabled) {
   background: #2980b9;
+  transform: none;
 }
 
 .exercise-item .toggle-btn {

@@ -278,7 +278,7 @@ button:disabled {
   color: #2c3e50;
 }
 
-.exercise-item .exercise-weight {
+.exercise-item .exercise-difficulty {
   font-size: 0.9rem;
   color: #7f8c8d;
 }
@@ -289,7 +289,7 @@ button:disabled {
   align-items: center;
 }
 
-.exercise-item .weight-btn {
+.exercise-item .difficulty-btn {
   min-width: 36px;
   min-height: 36px;
   padding: 5px 10px;
@@ -298,11 +298,11 @@ button:disabled {
   background: #2980b9;
 }
 
-.exercise-item .weight-btn:hover:not(:disabled) {
+.exercise-item .difficulty-btn:hover:not(:disabled) {
   background: #21618c;
 }
 
-.exercise-item .weight-btn:focus-visible {
+.exercise-item .difficulty-btn:focus-visible {
   outline: 3px solid #f39c12;
   outline-offset: 2px;
 }

@@ -30,22 +30,28 @@
    - current-exercise-index: zero-based index of current exercise (default 0)
    - remaining-seconds: seconds remaining for current exercise (default 0)
    - session-state: one of :not-started, :running, :paused, :completed (default :not-started)
+   - total-elapsed-seconds: total elapsed time across all exercises (default 0)
    
    Returns:
    - {:current-exercise-index int
       :remaining-seconds int
-      :session-state keyword}
+      :session-state keyword
+      :total-elapsed-seconds int}
    
-   Validates: Requirements 8.1, 8.2, 8.3"
+   Validates: Requirements 8.1, 8.2, 8.3, 9.3"
   ([]
-   (make-timer-state 0 0 :not-started))
+   (make-timer-state 0 0 :not-started 0))
   ([current-exercise-index remaining-seconds session-state]
+   (make-timer-state current-exercise-index remaining-seconds session-state 0))
+  ([current-exercise-index remaining-seconds session-state total-elapsed-seconds]
    {:pre [(>= current-exercise-index 0)
           (>= remaining-seconds 0)
-          (valid-session-state? session-state)]}
+          (valid-session-state? session-state)
+          (>= total-elapsed-seconds 0)]}
    {:current-exercise-index current-exercise-index
     :remaining-seconds remaining-seconds
-    :session-state session-state}))
+    :session-state session-state
+    :total-elapsed-seconds total-elapsed-seconds}))
 
 ;; ============================================================================
 ;; Timer State Management
@@ -82,9 +88,10 @@
    Returns:
    - {:current-exercise-index int
       :remaining-seconds int
-      :session-state keyword}
+      :session-state keyword
+      :total-elapsed-seconds int}
    
-   Validates: Requirements 8.1, 8.2, 8.3"
+   Validates: Requirements 8.1, 8.2, 8.3, 9.3"
   []
   @timer-state)
 
@@ -142,8 +149,9 @@
    - Sets session-plan atom
    - Resets timer state to first exercise
    - Clears any existing interval
+   - Resets total-elapsed-seconds to 0
    
-   Validates: Requirements 1.3, 2.1"
+   Validates: Requirements 1.3, 2.1, 9.3"
   [plan]
   {:pre [(map? plan)
          (contains? plan :exercises)
@@ -152,7 +160,7 @@
   (reset! session-plan plan)
   (let [first-exercise (first (:exercises plan))
         initial-duration (:duration-seconds first-exercise)]
-    (set-state! (make-timer-state 0 initial-duration :not-started))))
+    (set-state! (make-timer-state 0 initial-duration :not-started 0))))
 
 (defn start!
   "Start or resume the timer.
@@ -227,6 +235,7 @@
    
    Resets to first exercise with its full duration.
    Clears any running interval.
+   Resets total elapsed time to 0.
    
    Returns:
    - {:ok true} on success
@@ -236,16 +245,110 @@
    - Resets timer state to first exercise
    - Clears JavaScript interval
    - Sets state to :not-started
+   - Resets total-elapsed-seconds to 0
    
-   Validates: Requirements 5.5"
+   Validates: Requirements 5.5, 9.3"
   []
   (if-let [plan @session-plan]
     (do
       (clear-interval!)
       (let [first-exercise (first (:exercises plan))
             initial-duration (:duration-seconds first-exercise)]
-        (set-state! (make-timer-state 0 initial-duration :not-started)))
+        (set-state! (make-timer-state 0 initial-duration :not-started 0)))
       {:ok true})
+    {:error "No session initialized"}))
+
+(defn skip-exercise!
+  "Skip the current exercise and reallocate remaining time.
+   
+   Cancels the current exercise and reallocates its remaining time to future exercises.
+   If there are future exercises, distributes the remaining time proportionally.
+   If this is the last exercise, adds a new exercise from the library.
+   
+   Returns:
+   - {:ok true} on success
+   - {:error \"message\"} if no session is initialized or not running
+   
+   Side effects:
+   - Updates session plan with reallocated time
+   - Advances to next exercise or adds new exercise
+   - Maintains running state
+   
+   Validates: Requirements 5.6, 5.7"
+  []
+  (let [current-state (get-state)
+        state-keyword (:session-state current-state)]
+    (cond
+      ;; No session initialized
+      (nil? @session-plan)
+      {:error "No session initialized"}
+      
+      ;; Not running
+      (not= state-keyword :running)
+      {:error "Session not running"}
+      
+      ;; Skip current exercise
+      :else
+      (let [current-index (:current-exercise-index current-state)
+            remaining (:remaining-seconds current-state)
+            elapsed (:total-elapsed-seconds current-state)
+            plan @session-plan
+            exercises (:exercises plan)
+            future-exercises (drop (inc current-index) exercises)]
+        (if (seq future-exercises)
+          ;; Reallocate remaining time to future exercises
+          (let [total-future-duration (reduce + (map :duration-seconds future-exercises))
+                reallocation-ratio (if (> total-future-duration 0)
+                                     (/ remaining total-future-duration)
+                                     0)
+                updated-exercises (vec
+                                   (concat
+                                    (take (inc current-index) exercises)
+                                    (map (fn [ex]
+                                           (update ex :duration-seconds
+                                                   (fn [dur]
+                                                     (+ dur (int (* dur reallocation-ratio))))))
+                                         future-exercises)))
+                updated-plan (assoc plan :exercises updated-exercises)
+                next-exercise (nth updated-exercises (inc current-index))
+                next-duration (:duration-seconds next-exercise)]
+            (reset! session-plan updated-plan)
+            (set-state! (make-timer-state (inc current-index) next-duration :running elapsed))
+            (trigger-callbacks! :on-exercise-change (inc current-index))
+            {:ok true})
+          ;; Last exercise - complete the session
+          (do
+            (clear-interval!)
+            (update-state! assoc :session-state :completed)
+            (trigger-callbacks! :on-complete)
+            {:ok true}))))))
+
+(defn search-exercise
+  "Open a web search for the current exercise name.
+   
+   Generates a search URL with the current exercise name and opens it in a new browser tab.
+   
+   Returns:
+   - {:ok true :url \"search-url\"} on success
+   - {:error \"message\"} if no session is initialized or no current exercise
+   
+   Side effects:
+   - Opens a new browser tab with search results (if window is available)
+   
+   Validates: Requirements 5.9"
+  []
+  (if-let [plan @session-plan]
+    (let [current-state (get-state)
+          current-index (:current-exercise-index current-state)
+          exercises (:exercises plan)]
+      (if (< current-index (count exercises))
+        (let [current-exercise (nth exercises current-index)
+              exercise-name (get-in current-exercise [:exercise :name])
+              search-url (str "https://www.google.com/search?q=" (js/encodeURIComponent exercise-name))]
+          (when (exists? js/window)
+            (js/window.open search-url "_blank"))
+          {:ok true :url search-url})
+        {:error "No current exercise"}))
     {:error "No session initialized"}))
 
 
@@ -253,20 +356,40 @@
 ;; Timer Tick Logic and Exercise Progression
 ;; ============================================================================
 
+(defn calculate-progress-percentage
+  "Calculate session progress as percentage (0-100).
+   
+   Returns:
+   - percentage value (0-100) representing (elapsed / total) × 100
+   - 0 if no session is initialized
+   
+   Validates: Requirements 9.3"
+  []
+  (if-let [plan @session-plan]
+    (let [state (get-state)
+          elapsed (:total-elapsed-seconds state)
+          total (:total-duration-seconds plan)]
+      (if (> total 0)
+        (* (/ elapsed total) 100.0)
+        0.0))
+    0.0))
+
 (defn- advance-to-next-exercise!
   "Advance to the next exercise in the session.
    
    If there is a next exercise, updates state and triggers callbacks.
    If this was the final exercise, marks session as completed.
+   Maintains total-elapsed-seconds across exercise transitions.
    
    Side effects:
    - Updates timer state
    - Triggers :on-exercise-change or :on-complete callbacks
    
-   Validates: Requirements 4.3, 4.4"
+   Validates: Requirements 4.3, 4.4, 9.1"
   []
   (let [current-state (get-state)
         current-index (:current-exercise-index current-state)
+        elapsed (:total-elapsed-seconds current-state)
         plan @session-plan
         exercises (:exercises plan)
         next-index (inc current-index)]
@@ -274,7 +397,7 @@
       ;; There is a next exercise
       (let [next-exercise (nth exercises next-index)
             next-duration (:duration-seconds next-exercise)]
-        (set-state! (make-timer-state next-index next-duration :running))
+        (set-state! (make-timer-state next-index next-duration :running elapsed))
         (trigger-callbacks! :on-exercise-change next-index))
       ;; No more exercises, session complete
       (do
@@ -285,23 +408,27 @@
 (defn- timer-tick!
   "Handle a single timer tick (called every second).
    
-   Decrements remaining seconds and handles exercise transitions.
+   Decrements remaining seconds and increments total elapsed seconds.
+   Handles exercise transitions.
    
    Side effects:
    - Updates timer state
    - May advance to next exercise or complete session
    - Triggers :on-tick callback
    
-   Validates: Requirements 4.1, 4.2, 4.3, 4.4"
+   Validates: Requirements 4.1, 4.2, 4.3, 4.4, 9.1, 9.3"
   []
   (let [current-state (get-state)
         state-keyword (:session-state current-state)
         remaining (:remaining-seconds current-state)]
     (when (= state-keyword :running)
       (if (> remaining 0)
-        ;; Decrement remaining seconds
+        ;; Decrement remaining seconds and increment elapsed seconds
         (do
-          (update-state! update :remaining-seconds dec)
+          (update-state! (fn [state]
+                           (-> state
+                               (update :remaining-seconds dec)
+                               (update :total-elapsed-seconds inc))))
           (trigger-callbacks! :on-tick (dec remaining)))
         ;; Timer reached zero, advance to next exercise
         (advance-to-next-exercise!)))))

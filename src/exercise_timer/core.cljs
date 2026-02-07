@@ -1,6 +1,6 @@
 (ns exercise-timer.core
   (:require [reagent.core :as r]
-            [reagent.dom :as rdom]
+            [reagent.dom.client :as rdom-client]
             [exercise-timer.library :as library]
             [exercise-timer.session :as session]
             [exercise-timer.timer :as timer]
@@ -18,6 +18,7 @@
      :timer-state {:current-exercise-index 0
                    :remaining-seconds 0
                    :session-state :not-started}
+     :session-config {:equipment #{}}  ; Selected equipment types
      :ui {:show-add-exercise false
           :show-import-dialog false
           :import-conflicts nil
@@ -132,20 +133,22 @@
    
    Parameters:
    - name: exercise name
-   - weight: exercise weight (0.5 to 2.0)
+   - difficulty: exercise difficulty (0.5 to 2.0)
+   - equipment: vector of equipment type strings
    
    Side effects:
    - Adds exercise to library
    - Updates app state
    - Closes add exercise dialog"
-  [name weight]
-  (let [result (library/add-exercise! {:name name :weight weight})]
+  [name difficulty equipment]
+  (let [result (library/add-exercise! {:name name :difficulty difficulty :equipment equipment})]
     (if (contains? result :ok)
       (do
         (update-exercises! (library/load-library))
         (update-ui! {:show-add-exercise false
                      :add-exercise-name ""
-                     :add-exercise-weight 1.0
+                     :add-exercise-difficulty 1.0
+                     :add-exercise-equipment ""
                      :add-exercise-error nil}))
       (update-ui! {:add-exercise-error (:error result)}))))
 
@@ -243,11 +246,15 @@
    Side effects:
    - Loads exercise library from localStorage
    - Updates app-state with loaded exercises
+   - Initializes equipment selection with all equipment types
    
-   Validates: Requirements 6.5, 6.6"
+   Validates: Requirements 6.5, 6.6, 13.4"
   []
-  (let [exercises (library/load-library)]
-    (update-exercises! exercises)))
+  (let [exercises (library/load-library)
+        equipment-types (library/get-equipment-types)]
+    (update-exercises! exercises)
+    ;; Initialize equipment selection with all equipment types (default)
+    (swap! app-state assoc-in [:session-config :equipment] equipment-types)))
 
 ;; ============================================================================
 ;; UI Components
@@ -271,6 +278,27 @@
                :disabled session-active?
                :on-change #(update-ui! {:session-duration-minutes (js/parseInt (-> % .-target .-value))})}]]
      
+     ;; Equipment selection checkboxes
+     (let [all-equipment-types (library/get-equipment-types)
+           selected-equipment (get-in @app-state [:session-config :equipment])]
+       (when (seq all-equipment-types)
+         [:div.form-group
+          [:label "Available Equipment:"]
+          [:div.equipment-checkboxes {:role "group" :aria-label "Equipment selection"}
+           (for [equipment (sort all-equipment-types)]
+             ^{:key equipment}
+             [:label.equipment-checkbox
+              [:input {:type "checkbox"
+                       :checked (contains? selected-equipment equipment)
+                       :disabled session-active?
+                       :on-change #(let [checked (-> % .-target .-checked)]
+                                     (swap! app-state update-in [:session-config :equipment]
+                                            (fn [current-equipment]
+                                              (if checked
+                                                (conj current-equipment equipment)
+                                                (disj current-equipment equipment)))))}]
+              [:span equipment]])]]))
+     
      ;; Speech toggle
      (when (speech/speech-available?)
        [:div.form-group
@@ -283,7 +311,10 @@
      [:button {:on-click (fn []
                            (let [all-exercises (:exercises @app-state)
                                  enabled-exercises (vec (filter #(:enabled % true) all-exercises))
-                                 config (session/make-session-config duration)
+                                 session-config (:session-config @app-state)
+                                 duration (:session-duration-minutes ui)
+                                 equipment (:equipment session-config)
+                                 config (session/make-session-config duration equipment)
                                  session-plan (session/generate-session config enabled-exercises)]
                              (update-current-session! session-plan)
                              (timer/initialize-session! session-plan)
@@ -303,20 +334,56 @@
     (when (and session current-ex)
       (let [index (:current-exercise-index timer-state)
             total (count (:exercises session))
-            ex-name (get-in current-ex [:exercise :name])]
+            ex-name (get-in current-ex [:exercise :name])
+            ex-difficulty (get-in current-ex [:exercise :difficulty])
+            state-keyword (:session-state timer-state)
+            is-active? (or (= state-keyword :running) (= state-keyword :paused))]
         [:div.exercise-display {:role "status" :aria-live "polite"}
          [:h2 "Current Exercise"]
          [:div.exercise-name {:aria-label (str "Current exercise: " ex-name)} ex-name]
+         
+         ;; Difficulty adjustment controls (only show during active exercise)
+         (when is-active?
+           [:div.difficulty-controls {:role "group" :aria-label "Difficulty adjustment"}
+            [:button.difficulty-btn {:on-click #(do
+                                                   (library/update-exercise-difficulty! ex-name (max 0.5 (- ex-difficulty 0.1)))
+                                                   (update-exercises! (library/load-library)))
+                                     :aria-label (str "Decrease difficulty for " ex-name " (currently " ex-difficulty ")")
+                                     :title "Decrease difficulty"}
+             "−"]
+            [:span.difficulty-value {:aria-label (str "Current difficulty: " ex-difficulty)}
+             (str "Difficulty: " (.toFixed ex-difficulty 1))]
+            [:button.difficulty-btn {:on-click #(do
+                                                   (library/update-exercise-difficulty! ex-name (min 2.0 (+ ex-difficulty 0.1)))
+                                                   (update-exercises! (library/load-library)))
+                                     :aria-label (str "Increase difficulty for " ex-name " (currently " ex-difficulty ")")
+                                     :title "Increase difficulty"}
+             "+"]])
+         
          [:div.exercise-progress {:aria-label (str "Exercise " (inc index) " of " total)}
           (str "Exercise " (inc index) " of " total)]]))))
 
-;; Timer Display Component
 (defn timer-display []
   (let [timer-state (:timer-state @app-state)
         remaining (:remaining-seconds timer-state)
         formatted (format/seconds-to-mm-ss remaining)]
     [:div.timer-display {:role "timer" :aria-live "polite" :aria-atomic "true"}
      [:div.timer-value {:aria-label (str "Time remaining: " formatted)} formatted]]))
+
+;; Progress Bar Component
+(defn progress-bar []
+  (let [session (:current-session @app-state)
+        timer-state (:timer-state @app-state)
+        state-keyword (:session-state timer-state)]
+    (when (and session (not= state-keyword :not-started))
+      (let [progress-pct (timer/calculate-progress-percentage)]
+        [:div.progress-bar-container {:role "progressbar"
+                                      :aria-valuenow progress-pct
+                                      :aria-valuemin 0
+                                      :aria-valuemax 100
+                                      :aria-label (str "Session progress: " (.toFixed progress-pct 0) "%")}
+         [:div.progress-bar-fill {:style {:width (str progress-pct "%")}}]
+         [:div.progress-bar-text (str (.toFixed progress-pct 0) "%")]]))))
 
 ;; Control Panel Component
 (defn control-panel []
@@ -334,16 +401,25 @@
           "Start"]
          
          :running
-         [:button {:on-click #(do (timer/pause!)
-                                  (update-timer-state! (timer/get-state)))
-                   :aria-label "Pause workout (Spacebar)"}
-          "Pause"]
+         [:div
+          [:button {:on-click #(do (timer/pause!)
+                                   (update-timer-state! (timer/get-state)))
+                    :aria-label "Pause workout (Spacebar)"}
+           "Pause"]
+          [:button {:on-click #(do (timer/skip-exercise!)
+                                   (update-timer-state! (timer/get-state)))
+                    :aria-label "Skip current exercise"}
+           "Skip"]]
          
          :paused
-         [:button {:on-click #(do (timer/start!)
-                                  (update-timer-state! (timer/get-state)))
-                   :aria-label "Resume workout (Spacebar)"}
-          "Resume"]
+         [:div
+          [:button {:on-click #(do (timer/start!)
+                                   (update-timer-state! (timer/get-state)))
+                    :aria-label "Resume workout (Spacebar)"}
+           "Resume"]
+          [:button {:on-click #(timer/search-exercise)
+                    :aria-label "Search for current exercise instructions"}
+           "Search Exercise"]]
          
          :completed
          [:div "Session Complete!"]
@@ -380,26 +456,26 @@
       (for [ex exercises]
         (let [enabled? (:enabled ex true)
               ex-name (:name ex)
-              ex-weight (:weight ex)]
+              ex-difficulty (:difficulty ex)]
           ^{:key ex-name}
           [:div.exercise-item {:class (when-not enabled? "disabled")
                                :role "listitem"}
            [:div.exercise-info
             [:span.exercise-name ex-name]
-            [:span.exercise-weight (str "Weight: " ex-weight)]]
+            [:span.exercise-difficulty (str "Difficulty: " ex-difficulty)]]
            [:div.exercise-controls {:role "group" 
                                     :aria-label (str "Controls for " ex-name)}
-            [:button.weight-btn {:on-click #(do
-                                              (library/update-exercise-weight! ex-name (max 0.5 (- ex-weight 0.1)))
+            [:button.difficulty-btn {:on-click #(do
+                                              (library/update-exercise-difficulty! ex-name (max 0.5 (- ex-difficulty 0.1)))
                                               (update-exercises! (library/load-library)))
-                                 :aria-label (str "Decrease weight for " ex-name " (currently " ex-weight ")")
-                                 :title "Decrease weight"}
+                                 :aria-label (str "Decrease difficulty for " ex-name " (currently " ex-difficulty ")")
+                                 :title "Decrease difficulty"}
              "−"]
-            [:button.weight-btn {:on-click #(do
-                                              (library/update-exercise-weight! ex-name (min 2.0 (+ ex-weight 0.1)))
+            [:button.difficulty-btn {:on-click #(do
+                                              (library/update-exercise-difficulty! ex-name (min 2.0 (+ ex-difficulty 0.1)))
                                               (update-exercises! (library/load-library)))
-                                 :aria-label (str "Increase weight for " ex-name " (currently " ex-weight ")")
-                                 :title "Increase weight"}
+                                 :aria-label (str "Increase difficulty for " ex-name " (currently " ex-difficulty ")")
+                                 :title "Increase difficulty"}
              "+"]
             [:button.toggle-btn {:on-click #(do
                                               (library/toggle-exercise-enabled! ex-name)
@@ -431,17 +507,23 @@
         "Import Library"]]
       [:button {:on-click #(update-ui! {:show-add-exercise true
                                         :add-exercise-name ""
-                                        :add-exercise-weight 1.0
+                                        :add-exercise-difficulty 1.0
                                         :add-exercise-error nil})
                 :aria-label "Add new exercise to library"}
-       "Add Exercise"]]]))
+       "Add Exercise"]
+      [:button {:on-click #(when (js/confirm "Reset all data and restore default exercises? This cannot be undone.")
+                             (library/clear-library-for-testing!)
+                             (update-exercises! (library/load-library)))
+                :aria-label "Reset all data to defaults"
+                :style {:background "#e74c3c"}}
+       "Reset Data"]]]))
 
 ;; Add Exercise Dialog Component
 (defn add-exercise-dialog []
   (let [ui (:ui @app-state)
         show? (:show-add-exercise ui)
         name (:add-exercise-name ui "")
-        weight (:add-exercise-weight ui 1.0)
+        difficulty (:add-exercise-difficulty ui 1.0)
         error (:add-exercise-error ui)
         input-ref (atom nil)]
     (when show?
@@ -467,25 +549,41 @@
                          (when el (.focus el)))
                   :on-change #(update-ui! {:add-exercise-name (-> % .-target .-value)})
                   :on-key-press #(when (= (.-key %) "Enter")
-                                   (add-exercise! name weight))}]]
+                                   (let [equipment-str (or (:add-exercise-equipment ui) "")
+                                         equipment-vec (if (empty? equipment-str)
+                                                         ["None"]
+                                                         (vec (map clojure.string/trim (clojure.string/split equipment-str #","))))]
+                                     (add-exercise! name difficulty equipment-vec)))}]]
         
         [:div.form-group
-         [:label {:for "exercise-weight"} 
-          (str "Weight: " weight " (0.5 = easier, 2.0 = harder)")]
+         [:label {:for "exercise-difficulty"} 
+          (str "Difficulty: " difficulty " (0.5 = easier, 2.0 = harder)")]
          [:input {:type "range"
-                  :id "exercise-weight"
+                  :id "exercise-difficulty"
                   :min 0.5
                   :max 2.0
                   :step 0.1
-                  :value weight
+                  :value difficulty
                   :aria-valuemin 0.5
                   :aria-valuemax 2.0
-                  :aria-valuenow weight
-                  :aria-label "Exercise difficulty weight"
-                  :on-change #(update-ui! {:add-exercise-weight (js/parseFloat (-> % .-target .-value))})}]]
+                  :aria-valuenow difficulty
+                  :aria-label "Exercise difficulty level"
+                  :on-change #(update-ui! {:add-exercise-difficulty (js/parseFloat (-> % .-target .-value))})}]]
+        
+        [:div.form-group
+         [:label {:for "exercise-equipment"} "Equipment (comma-separated, or leave empty for 'None'):"]
+         [:input {:type "text"
+                  :id "exercise-equipment"
+                  :value (or (:add-exercise-equipment ui) "")
+                  :placeholder "e.g., Dumbbells, A wall"
+                  :on-change #(update-ui! {:add-exercise-equipment (-> % .-target .-value)})}]]
         
         [:div.modal-actions
-         [:button {:on-click #(add-exercise! name weight)
+         [:button {:on-click #(let [equipment-str (or (:add-exercise-equipment ui) "")
+                                    equipment-vec (if (empty? equipment-str)
+                                                    ["None"]
+                                                    (vec (map clojure.string/trim (clojure.string/split equipment-str #","))))]
+                                (add-exercise! name difficulty equipment-vec))
                    :aria-label "Add exercise to library"}
           "Add Exercise"]
          [:button {:on-click #(update-ui! {:show-add-exercise false})
@@ -509,13 +607,13 @@
        [:div.modal-content.import-dialog {:on-click #(.stopPropagation %)}
         [:h2#import-dialog-title "Import Conflicts Detected"]
         
-        [:p "The following exercises exist in both your library and the import file with different weights. Choose which version to keep:"]
+        [:p "The following exercises exist in both your library and the import file with different difficulties. Choose which version to keep:"]
         
         [:div.conflict-list
          (for [conflict conflicts]
            (let [ex-name (:name conflict)
-                 existing-weight (:existing-weight conflict)
-                 imported-weight (:imported-weight conflict)
+                 existing-difficulty (:existing-difficulty conflict)
+                 imported-difficulty (:imported-difficulty conflict)
                  current-choice (get resolutions ex-name :keep-existing)]
              ^{:key ex-name}
              [:div.conflict-item
@@ -527,13 +625,13 @@
                          :name (str "conflict-" ex-name)
                          :checked (= current-choice :keep-existing)
                          :on-change #(update-ui! {:conflict-resolutions (assoc resolutions ex-name :keep-existing)})}]
-                [:span (str "Keep existing (weight: " existing-weight ")")]]
+                [:span (str "Keep existing (difficulty: " existing-difficulty ")")]]
                [:label.conflict-option
                 [:input {:type "radio"
                          :name (str "conflict-" ex-name)
                          :checked (= current-choice :use-imported)
                          :on-change #(update-ui! {:conflict-resolutions (assoc resolutions ex-name :use-imported)})}]
-                [:span (str "Use imported (weight: " imported-weight ")")]]]]))]
+                [:span (str "Use imported (difficulty: " imported-difficulty ")")]]]]))]
         
         [:div.modal-actions
          [:button {:on-click #(complete-import!)
@@ -563,6 +661,7 @@
        [:div.active-session
         [exercise-display]
         [timer-display]
+        [progress-bar]
         [control-panel]
         [completion-screen]])]
     
@@ -614,14 +713,19 @@
 ;; App Initialization
 ;; ============================================================================
 
+;; Store the root for React 18 createRoot API
+(defonce root (atom nil))
+
 (defn init! []
   "Initialize the application."
   (initialize-app-state!)
   (setup-timer-callbacks!)
   ;; Add keyboard event listener
   (.addEventListener js/document "keydown" handle-keyboard-shortcuts!)
-  (rdom/render [app]
-               (.getElementById js/document "app")))
+  ;; Use React 18's createRoot API
+  (when-not @root
+    (reset! root (rdom-client/create-root (.getElementById js/document "app"))))
+  (rdom-client/render @root [app]))
 
 ;; Hot reload support
 (defn ^:dev/after-load reload! []
