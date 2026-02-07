@@ -3,17 +3,18 @@
 
 echo "Building for GitHub Pages..."
 
-# Build production JavaScript
-echo "Compiling ClojureScript..."
-npx shadow-cljs release app
-
-# Clean docs directory
+# Clean docs directory completely
 echo "Cleaning docs directory..."
 rm -rf docs/*
 
-# Copy built files to docs
-echo "Copying files to docs/..."
-cp -r public/* docs/
+# Copy static assets from source
+echo "Copying static assets from src/public/..."
+cp src/public/index.html docs/
+cp -r src/public/css docs/
+
+# Build production JavaScript with advanced optimizations
+echo "Compiling ClojureScript with advanced optimizations..."
+npx shadow-cljs release release
 
 # Add .nojekyll file (prevents GitHub Pages from ignoring files starting with _)
 touch docs/.nojekyll
