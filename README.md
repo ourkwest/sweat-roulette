@@ -2,6 +2,8 @@
 
 A web-based exercise timer application built with ClojureScript and Reagent. This app helps users perform structured workout sessions with automatic exercise sequencing and timing.
 
+**🌐 Live Demo:** [https://ourkwest.github.io/sweat-roulette/](https://ourkwest.github.io/sweat-roulette/)
+
 ## ✨ Features
 
 - **Configurable Sessions**: Set your workout duration (default 5 minutes)
