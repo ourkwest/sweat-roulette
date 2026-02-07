@@ -775,7 +775,7 @@
       (when session
         (let [timer-state (:timer-state @app-state)
               total-duration (:total-duration-seconds session)
-              elapsed (- total-duration (:remaining-seconds timer-state))
+              elapsed (:total-elapsed-seconds timer-state 0)
               formatted-elapsed (format/seconds-to-mm-ss elapsed)
               formatted-total (format/seconds-to-mm-ss total-duration)]
           [:div.session-timer (str formatted-elapsed " / " formatted-total)]))]
