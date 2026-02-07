@@ -9,8 +9,11 @@ The Exercise Timer App is a client-side web application that provides guided wor
 1. **Client-Only Architecture**: All functionality runs in the browser with no server dependencies
 2. **Local Data Persistence**: Exercise library stored in browser local storage
 3. **Responsive Design**: Works across mobile, tablet, and desktop devices
-4. **Weighted Time Distribution**: Exercises receive time proportional to their difficulty weights
+4. **Difficulty-Based Time Distribution**: Exercises receive time proportional to their difficulty values (0.5-2.0)
 5. **Maximum Variety**: Exercises cycle through the entire library before repeating
+6. **Time Constraints**: Individual exercises bounded between 20 seconds and 2 minutes
+7. **Progressive Difficulty**: Sessions start and end with easier exercises
+8. **Equipment Filtering**: Only include exercises matching available equipment
 
 ### Technology Stack
 
@@ -62,15 +65,16 @@ graph TB
 **Interface**:
 ```clojure
 ;; Exercise data structure
-(defn make-exercise [name weight]
+(defn make-exercise [name difficulty equipment]
   {:name name
-   :weight weight})
+   :difficulty difficulty
+   :equipment equipment})  ; vector of equipment type strings
 
 ;; Exercise Library Manager namespace
 (ns exercise-timer.library)
 
 (defn load-library []
-  "Load exercises from local storage, returns vector of exercises")
+  "Load exercises from local storage, returns vector of exercises sorted by name")
 
 (defn save-library! [exercises]
   "Save exercises to local storage")
@@ -78,8 +82,17 @@ graph TB
 (defn add-exercise! [exercise]
   "Add a new exercise, returns {:ok true} or {:error \"message\"}")
 
+(defn update-exercise-difficulty! [exercise-name new-difficulty]
+  "Update difficulty for an existing exercise, persists to storage")
+
 (defn get-all-exercises []
-  "Get all exercises from current state")
+  "Get all exercises from current state, sorted alphabetically by name")
+
+(defn get-equipment-types []
+  "Get all unique equipment types from the library")
+
+(defn filter-by-equipment [exercises equipment-set]
+  "Filter exercises to only those requiring equipment in the provided set")
 
 (defn exercise-exists? [name]
   "Check if exercise name exists in library")
@@ -94,17 +107,17 @@ graph TB
   "Initialize library with default exercises")
 ```
 
-**Default Exercises**:
-- Push-ups (weight: 1.2)
-- Squats (weight: 1.0)
-- Plank (weight: 1.5)
-- Jumping Jacks (weight: 0.8)
-- Lunges (weight: 1.0)
-- Mountain Climbers (weight: 1.3)
-- Burpees (weight: 1.8)
-- High Knees (weight: 0.9)
-- Sit-ups (weight: 1.0)
-- Wall Sit (weight: 1.4)
+**Default Exercises** (with equipment):
+- Burpees (difficulty: 1.8, equipment: ["None"])
+- High Knees (difficulty: 0.9, equipment: ["None"])
+- Jumping Jacks (difficulty: 0.8, equipment: ["None"])
+- Lunges (difficulty: 1.0, equipment: ["None"])
+- Mountain Climbers (difficulty: 1.3, equipment: ["None"])
+- Plank (difficulty: 1.5, equipment: ["None"])
+- Push-ups (difficulty: 1.2, equipment: ["None"])
+- Sit-ups (difficulty: 1.0, equipment: ["None"])
+- Squats (difficulty: 1.0, equipment: ["None"])
+- Wall Sit (difficulty: 1.4, equipment: ["A wall"])
 
 ### 2. Session Generator
 
@@ -116,18 +129,34 @@ graph TB
 
 (defn generate-session [config exercises]
   "Generate a session plan from configuration and exercise library
-   config: {:duration-minutes int}
+   config: {:duration-minutes int :equipment #{string}}
    exercises: vector of exercise maps
    returns: {:exercises [{:exercise {...} :duration-seconds int}]
              :total-duration-seconds int}")
+
+(defn sort-by-difficulty [exercises]
+  "Sort exercises by difficulty, returning easier ones first")
+
+(defn apply-time-constraints [exercise-duration]
+  "Ensure duration is between 20 seconds and 120 seconds (2 minutes)")
+
+(defn split-long-exercises [session-plan]
+  "Split exercises exceeding 2 minutes into multiple occurrences")
+
+(defn arrange-progressive-difficulty [session-plan]
+  "Rearrange exercises so easier ones are at start and end")
 ```
 
 **Algorithm**:
-1. Determine number of exercises (one or more, based on duration and user preference)
-2. Select exercises using round-robin without repetition until all library exercises used
-3. Calculate base time per exercise: `totalSeconds / sum(weights)`
-4. Assign time to each exercise: `baseTime * exercise.weight`
-5. Distribute any remaining seconds due to rounding to exercises proportionally
+1. Filter exercises by selected equipment
+2. Sort exercises by difficulty (ascending)
+3. Select exercises using round-robin without repetition until all library exercises used
+4. Calculate base time per exercise: `totalSeconds / sum(difficulties)`
+5. Assign time to each exercise: `baseTime * exercise.difficulty`
+6. Apply time constraints (20s min, 120s max)
+7. Split exercises exceeding 2 minutes into multiple occurrences
+8. Arrange exercises so easier ones are at beginning and end
+9. Distribute any remaining seconds due to rounding to exercises proportionally
 
 ### 3. Timer Manager
 
@@ -148,11 +177,15 @@ graph TB
 (defn restart! []
   "Reset to beginning")
 
+(defn skip-exercise! []
+  "Skip current exercise and reallocate remaining time")
+
 (defn get-state []
   "Get current timer state
    returns: {:current-exercise-index int
              :remaining-seconds int
-             :session-state keyword}")
+             :session-state keyword
+             :total-elapsed-seconds int}")
 
 (defn next-exercise! []
   "Advance to next exercise")
@@ -165,13 +198,18 @@ graph TB
 
 (defn on-complete [callback]
   "Register callback for session complete")
+
+(defn calculate-progress-percentage []
+  "Calculate session progress as percentage (0-100)")
 ```
 
 **Timer Implementation**:
 - Uses `js/setInterval` with 1000ms interval
 - Decrements `remaining-seconds` each tick
+- Tracks `total-elapsed-seconds` for progress calculation
 - When reaching 0, advances to next exercise or completes session
 - Clears interval when paused or completed
+- Skip exercise reallocates remaining time to future exercises
 
 ### 4. State Management
 
@@ -182,13 +220,16 @@ graph TB
 ;; Global app state atom
 (defonce app-state
   (reagent/atom
-    {:exercises []                    ; Exercise library
+    {:exercises []                    ; Exercise library (sorted by name)
      :current-session nil             ; Current session plan or nil
      :timer-state {:current-exercise-index 0
                    :remaining-seconds 0
+                   :total-elapsed-seconds 0
                    :session-state :not-started}
+     :session-config {:equipment #{}}  ; Selected equipment types
      :ui {:show-add-exercise false
           :show-import-dialog false
+          :show-difficulty-adjust false
           :import-conflicts nil}}))
 ```
 
@@ -196,15 +237,16 @@ graph TB
 
 **Main Components** (Reagent components):
 
-1. **app**: Root component
-2. **configuration-panel**: Set session duration, start session
-3. **exercise-display**: Show current exercise, progress (X of Y)
+1. **app**: Root component (uses React 18 createRoot API)
+2. **configuration-panel**: Set session duration, select equipment, start session
+3. **exercise-display**: Show current exercise, progress (X of Y), difficulty adjustment controls
 4. **timer-display**: Show countdown in MM:SS format
-5. **control-panel**: Pause/Resume/Restart buttons
-6. **exercise-library-panel**: View, add, import, export exercises
-7. **add-exercise-dialog**: Form to add new exercise
-8. **import-conflict-dialog**: Resolve import conflicts
-9. **completion-screen**: Show when session completes
+5. **progress-bar**: Visual indicator of overall session progress
+6. **control-panel**: Pause/Resume/Restart/Skip/Search buttons
+7. **exercise-library-panel**: View (sorted), add, import, export exercises
+8. **add-exercise-dialog**: Form to add new exercise with equipment selection
+9. **import-conflict-dialog**: Resolve import conflicts
+10. **completion-screen**: Show when session completes
 
 ## Data Models
 
@@ -212,28 +254,38 @@ graph TB
 
 ```clojure
 {:name "Push-ups"     ; Unique identifier and display name
- :weight 1.2}         ; Time multiplier: 0.5 to 2.0
+ :difficulty 1.2      ; Time multiplier: 0.5 to 2.0
+ :equipment ["None"]} ; Vector of required equipment types
 ```
 
 **Validation Rules**:
 - `name`: Non-empty string, unique within library
-- `weight`: Number between 0.5 and 2.0 inclusive
+- `difficulty`: Number between 0.5 and 2.0 inclusive
+- `equipment`: Vector of strings, can be empty or contain equipment types
 
 ### Session Plan
 
 ```clojure
-{:exercises [{:exercise {:name "Push-ups" :weight 1.2}
+{:exercises [{:exercise {:name "Jumping Jacks" :difficulty 0.8 :equipment ["None"]}
               :duration-seconds 45}
-             {:exercise {:name "Squats" :weight 1.0}
-              :duration-seconds 38}]
+             {:exercise {:name "Push-ups" :difficulty 1.2 :equipment ["None"]}
+              :duration-seconds 68}
+             {:exercise {:name "Squats" :difficulty 1.0 :equipment ["None"]}
+              :duration-seconds 57}
+             {:exercise {:name "High Knees" :difficulty 0.9 :equipment ["None"]}
+              :duration-seconds 51}]
  :total-duration-seconds 300}
 ```
 
 **Invariants**:
 - `exercises.length >= 1`
 - `sum(exercises.map(e => e.durationSeconds)) === totalDurationSeconds`
+- Each exercise duration >= 20 seconds
+- Each exercise duration <= 120 seconds (2 minutes)
 - No consecutive duplicate exercises
 - Exercises cycle through library before repeating
+- First and last exercises have lower difficulty than middle exercises
+- All exercises match selected equipment requirements
 
 ### Local Storage Schema
 
@@ -246,7 +298,13 @@ graph TB
   "exercises": [
     {
       "name": "Push-ups",
-      "weight": 1.2
+      "difficulty": 1.2,
+      "equipment": ["None"]
+    },
+    {
+      "name": "Wall Sit",
+      "difficulty": 1.4,
+      "equipment": ["A wall"]
     }
   ]
 }
@@ -357,6 +415,66 @@ graph TB
 *For any* successful import with resolved conflicts, the merged library should be persisted to local storage.
 **Validates: Requirements 11.9**
 
+### Property 26: Minimum Exercise Duration
+*For any* generated session plan, all exercise durations should be at least 20 seconds.
+**Validates: Requirements 2.6**
+
+### Property 27: Maximum Exercise Duration
+*For any* generated session plan, all exercise durations should be at most 120 seconds (2 minutes).
+**Validates: Requirements 2.7**
+
+### Property 28: Exercise Splitting for Long Durations
+*For any* exercise that would naturally receive more than 120 seconds, it should appear multiple times in the session plan with each occurrence being at most 120 seconds.
+**Validates: Requirements 2.8**
+
+### Property 29: Progressive Difficulty Arrangement
+*For any* generated session plan with 3 or more exercises, the first and last exercises should have lower difficulty values than the middle exercises.
+**Validates: Requirements 2.9**
+
+### Property 30: Equipment Filtering
+*For any* session generated with selected equipment types, all exercises in the session should require only equipment from the selected set or no equipment.
+**Validates: Requirements 2.10, 13.3**
+
+### Property 31: Skip Exercise Time Conservation
+*For any* active session, when an exercise is skipped, the total remaining session time should be preserved (either reallocated to future exercises or used to add an extra exercise).
+**Validates: Requirements 5.6**
+
+### Property 32: Search URL Generation
+*For any* exercise name, when the search control is activated, the generated URL should contain the exercise name as a search query.
+**Validates: Requirements 5.9**
+
+### Property 33: Alphabetical Library Sorting
+*For any* exercise library, when displayed, the exercises should be sorted alphabetically by name in ascending order.
+**Validates: Requirements 6.7**
+
+### Property 34: Exercise Equipment Field
+*For any* successfully added exercise, it should include an equipment field containing a vector of equipment type strings.
+**Validates: Requirements 7.4**
+
+### Property 35: Progress Calculation
+*For any* active session with elapsed time and total duration, the progress percentage should equal (elapsed / total) × 100.
+**Validates: Requirements 9.3**
+
+### Property 36: Equipment Types Display
+*For any* exercise library, the configuration panel should display checkboxes for all unique equipment types found in the library.
+**Validates: Requirements 13.1**
+
+### Property 37: Equipment Selection Storage
+*For any* equipment selection made by the user, the selection should be stored in the session configuration state.
+**Validates: Requirements 13.2**
+
+### Property 38: Difficulty Adjustment Updates Library
+*For any* difficulty adjustment made during an active exercise, the exercise's difficulty value in the library should be updated to the new value.
+**Validates: Requirements 14.2**
+
+### Property 39: Difficulty Adjustment Persistence
+*For any* difficulty adjustment made during an active exercise, the change should be immediately persisted to local storage.
+**Validates: Requirements 14.3**
+
+### Property 40: Difficulty Adjustment Preserves Time
+*For any* difficulty adjustment made during an active exercise, the remaining time for the current exercise should remain unchanged.
+**Validates: Requirements 14.4**
+
 ## Error Handling
 
 ### Input Validation Errors
@@ -366,15 +484,20 @@ graph TB
    - Response: Display error message, maintain current state
    - User Action: Correct input and retry
 
-2. **Invalid Exercise Weight**:
-   - Trigger: Weight < 0.5 or > 2.0
+2. **Invalid Exercise Difficulty**:
+   - Trigger: Difficulty < 0.5 or > 2.0
    - Response: Display error message, reject addition
-   - User Action: Correct weight and retry
+   - User Action: Correct difficulty and retry
 
 3. **Duplicate Exercise Name**:
    - Trigger: Adding exercise with existing name
    - Response: Display error message, reject addition
    - User Action: Choose different name or modify existing
+
+4. **Invalid Equipment Selection**:
+   - Trigger: No equipment selected when library requires equipment
+   - Response: Display warning, suggest selecting equipment
+   - User Action: Select at least one equipment type
 
 ### Data Persistence Errors
 
@@ -540,5 +663,6 @@ Suggested breakpoints:
 
 1. **Immutable Data**: All state updates use immutable operations
 2. **Reagent Atoms**: Use `swap!` and `reset!` for state updates
-3. **JS Interop**: LocalStorage accessed via `js/localStorage`
+3. **JS Interop**: LocalStorage accessed via `js/localStorage`, window.open for search via `js/window.open`
 4. **Namespace Organization**: Separate namespaces for library, session, timer, and UI components
+5. **React 18 Integration**: Use `react-dom/client` createRoot instead of deprecated render method
