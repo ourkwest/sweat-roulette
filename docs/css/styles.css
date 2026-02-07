@@ -73,29 +73,67 @@ main {
   border: 1px solid #bdc3c7;
   border-radius: 4px;
   font-size: 16px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+}
+
+/* Skip to main content link for keyboard users */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #3498db;
+  color: white;
+  padding: 8px 16px;
+  text-decoration: none;
+  z-index: 100;
+}
+
+.skip-link:focus {
+  top: 0;
 }
 
 /* Buttons */
 button {
-  background: #3498db;
+  background: #2980b9;
   color: white;
   border: none;
   padding: 10px 20px;
   border-radius: 4px;
   font-size: 16px;
   cursor: pointer;
-  transition: background 0.3s;
+  transition: background 0.3s, box-shadow 0.3s;
   min-width: 44px;
   min-height: 44px;
 }
 
 button:hover:not(:disabled) {
-  background: #2980b9;
+  background: #21618c;
+}
+
+button:focus {
+  outline: 3px solid #f39c12;
+  outline-offset: 2px;
+}
+
+button:focus:not(:focus-visible) {
+  outline: none;
+}
+
+button:focus-visible {
+  outline: 3px solid #f39c12;
+  outline-offset: 2px;
 }
 
 button:disabled {
-  background: #95a5a6;
+  background: #7f8c8d;
   cursor: not-allowed;
+  opacity: 0.7;
 }
 
 /* Active Session */
@@ -103,7 +141,7 @@ button:disabled {
   background: #fff;
   padding: 20px;
   border-radius: 8px;
-  border: 2px solid #3498db;
+  border: 2px solid #2980b9;
 }
 
 /* Exercise Display */
@@ -162,7 +200,7 @@ button:disabled {
 .completion-screen {
   text-align: center;
   padding: 40px;
-  background: #2ecc71;
+  background: #27ae60;
   color: white;
   border-radius: 8px;
   margin: 20px 0;
@@ -175,12 +213,18 @@ button:disabled {
 
 .completion-screen button {
   background: white;
-  color: #2ecc71;
+  color: #27ae60;
   margin-top: 20px;
+  font-weight: 600;
 }
 
 .completion-screen button:hover {
   background: #ecf0f1;
+}
+
+.completion-screen button:focus-visible {
+  outline: 3px solid #f39c12;
+  outline-offset: 2px;
 }
 
 /* Exercise Library Panel */
@@ -251,11 +295,16 @@ button:disabled {
   padding: 5px 10px;
   font-size: 18px;
   font-weight: bold;
-  background: #3498db;
+  background: #2980b9;
 }
 
 .exercise-item .weight-btn:hover:not(:disabled) {
-  background: #2980b9;
+  background: #21618c;
+}
+
+.exercise-item .weight-btn:focus-visible {
+  outline: 3px solid #f39c12;
+  outline-offset: 2px;
 }
 
 .exercise-item .toggle-btn {
@@ -267,19 +316,29 @@ button:disabled {
 }
 
 .exercise-item .toggle-btn.enabled {
-  background: #2ecc71;
-}
-
-.exercise-item .toggle-btn.enabled:hover {
   background: #27ae60;
 }
 
+.exercise-item .toggle-btn.enabled:hover {
+  background: #229954;
+}
+
+.exercise-item .toggle-btn.enabled:focus-visible {
+  outline: 3px solid #f39c12;
+  outline-offset: 2px;
+}
+
 .exercise-item .toggle-btn.disabled {
-  background: #e74c3c;
+  background: #c0392b;
 }
 
 .exercise-item .toggle-btn.disabled:hover {
-  background: #c0392b;
+  background: #a93226;
+}
+
+.exercise-item .toggle-btn.disabled:focus-visible {
+  outline: 3px solid #f39c12;
+  outline-offset: 2px;
 }
 
 .exercise-item .delete-btn {
@@ -287,11 +346,16 @@ button:disabled {
   min-height: 36px;
   padding: 5px 10px;
   font-size: 16px;
-  background: #95a5a6;
+  background: #7f8c8d;
 }
 
 .exercise-item .delete-btn:hover {
-  background: #e74c3c;
+  background: #c0392b;
+}
+
+.exercise-item .delete-btn:focus-visible {
+  outline: 3px solid #f39c12;
+  outline-offset: 2px;
 }
 
 .library-actions {
@@ -409,9 +473,10 @@ button:disabled {
 }
 
 .error-message {
-  background: #e74c3c;
+  background: #c0392b;
   color: white;
   padding: 10px;
   border-radius: 4px;
   margin-bottom: 15px;
+  font-weight: 500;
 }

@@ -87,23 +87,23 @@ This plan implements a ClojureScript-based exercise timer web application with w
     - **Property 4: No Repetition Until Library Exhausted**
     - **Validates: Requirements 2.1, 2.2, 2.3**
   
-  - [ ] 3.6 Implement `generate-session` function
+  - [x] 3.6 Implement `generate-session` function
     - Integrate time distribution and exercise selection
     - Convert minutes to seconds
     - Return complete session plan
     - _Requirements: 1.2, 2.1, 2.2, 2.3, 2.4, 2.5_
   
-  - [ ] 3.7 Write property test for session configuration
+  - [x] 3.7 Write property test for session configuration
     - **Property 1: Session Configuration Round-Trip**
     - **Validates: Requirements 1.1, 1.2, 1.3**
   
-  - [ ] 3.8 Write unit tests for session generator
+  - [x] 3.8 Write unit tests for session generator
     - Test default 5-minute session duration
     - Test single-exercise session
     - Test specific weight calculations with known values
     - _Requirements: 1.4, 2.1_
 
-- [ ] 4. Checkpoint - Ensure core logic tests pass
+- [x] 4. Checkpoint - Ensure core logic tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [x] 5. Implement Timer Manager
@@ -324,49 +324,49 @@ This plan implements a ClojureScript-based exercise timer web application with w
     - _Requirements: 12.1, 12.4_
 
 - [ ] 12. Implement accessibility features
-  - [ ] 12.1 Add keyboard navigation
+  - [x] 12.1 Add keyboard navigation
     - Ensure all controls are keyboard accessible
     - Implement logical tab order
     - Add keyboard shortcuts for play/pause
     - _Requirements: 12.3_
   
-  - [ ] 12.2 Add ARIA labels and roles
+  - [x] 12.2 Add ARIA labels and roles
     - Add ARIA labels to timer display
     - Add ARIA labels to exercise information
     - Add ARIA live regions for dynamic updates
     - _Requirements: 3.1, 4.2_
   
-  - [ ] 12.3 Ensure color contrast compliance
+  - [x] 12.3 Ensure color contrast compliance
     - Verify WCAG AA compliance for all text
     - Add clear focus indicators
     - _Requirements: 12.1, 12.2_
 
 - [ ] 13. Integration and final wiring
-  - [ ] 13.1 Wire timer callbacks to UI updates
+  - [x] 13.1 Wire timer callbacks to UI updates
     - Connect on-tick to timer display updates
     - Connect on-exercise-change to exercise display updates
     - Connect on-complete to completion screen display
     - _Requirements: 3.4, 4.2, 4.3, 4.4_
   
-  - [ ] 13.2 Wire library operations to UI
+  - [x] 13.2 Wire library operations to UI
     - Connect add exercise to library panel refresh
     - Connect import/export to file operations
     - Handle error display in UI
     - _Requirements: 7.5, 7.6, 10.3, 11.5_
   
-  - [ ] 13.3 Implement localStorage initialization
+  - [x] 13.3 Implement localStorage initialization
     - Load library on app mount
     - Initialize defaults if storage empty
     - Handle storage unavailable scenario
     - _Requirements: 6.5, 6.6_
   
-  - [ ] 13.4 Write integration tests
+  - [x] 13.4 Write integration tests
     - Test complete user workflow: configure → start → pause → resume → complete
     - Test add exercise → start session → verify exercise appears
     - Test export → import → verify library preserved
     - _Requirements: 1.1, 2.1, 4.1, 5.2, 5.4, 7.5, 10.2, 11.3_
 
-- [ ] 14. Final checkpoint - Ensure all tests pass
+- [x] 14. Final checkpoint - Ensure all tests pass
   - Run complete test suite
   - Verify all property tests pass with 100+ iterations
   - Verify all unit tests pass

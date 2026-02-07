@@ -219,6 +219,20 @@ Tested on:
 
 All buttons are touch-friendly (minimum 44px) and keyboard accessible.
 
+## ♿ Accessibility
+
+The app is built with accessibility in mind and meets WCAG 2.1 AA standards:
+
+- **Keyboard Navigation**: Full keyboard support with shortcuts (Space, R, Escape)
+- **Screen Reader Support**: ARIA labels, roles, and live regions throughout
+- **Color Contrast**: All text meets WCAG AA contrast requirements (4.5:1+)
+- **Focus Indicators**: Clear 3px orange outlines on all interactive elements
+- **Touch Targets**: Minimum 44x44px for all buttons
+- **Skip Navigation**: "Skip to main content" link for keyboard users
+- **Voice Announcements**: Optional audio feedback for exercise changes and timing
+
+See [ACCESSIBILITY.md](ACCESSIBILITY.md) for detailed accessibility documentation.
+
 ## 🏗 Architecture
 
 The app follows a clean architecture with:

@@ -25,6 +25,55 @@
           :speech-enabled true}}))     ; Speech announcements enabled by default
 
 ;; ============================================================================
+;; Keyboard Navigation
+;; ============================================================================
+
+(defn handle-keyboard-shortcuts!
+  "Handle global keyboard shortcuts for timer controls.
+   
+   Shortcuts:
+   - Space: Play/Pause
+   - R: Restart
+   - Escape: Close modals
+   
+   Parameters:
+   - event: keyboard event"
+  [event]
+  (let [key (.-key event)
+        timer-state (:timer-state @app-state)
+        state-keyword (:session-state timer-state)
+        session (:current-session @app-state)
+        target (.-target event)
+        tag-name (.-tagName target)]
+    ;; Don't intercept if user is typing in an input
+    (when-not (or (= tag-name "INPUT") (= tag-name "TEXTAREA"))
+      (case key
+        " " (do
+              (.preventDefault event)
+              (when session
+                (cond
+                  (= state-keyword :not-started)
+                  (do (timer/start!)
+                      (update-timer-state! (timer/get-state)))
+                  
+                  (= state-keyword :running)
+                  (do (timer/pause!)
+                      (update-timer-state! (timer/get-state)))
+                  
+                  (= state-keyword :paused)
+                  (do (timer/start!)
+                      (update-timer-state! (timer/get-state))))))
+        
+        "r" (when (and session (not= state-keyword :not-started))
+              (timer/restart!)
+              (update-timer-state! (timer/get-state)))
+        
+        "Escape" (update-ui! {:show-add-exercise false
+                              :show-import-dialog false})
+        
+        nil))))
+
+;; ============================================================================
 ;; State Update Functions
 ;; ============================================================================
 
@@ -184,10 +233,10 @@
       (let [index (:current-exercise-index timer-state)
             total (count (:exercises session))
             ex-name (get-in current-ex [:exercise :name])]
-        [:div.exercise-display
+        [:div.exercise-display {:role "status" :aria-live "polite"}
          [:h2 "Current Exercise"]
-         [:div.exercise-name ex-name]
-         [:div.exercise-progress
+         [:div.exercise-name {:aria-label (str "Current exercise: " ex-name)} ex-name]
+         [:div.exercise-progress {:aria-label (str "Exercise " (inc index) " of " total)}
           (str "Exercise " (inc index) " of " total)]]))))
 
 ;; Timer Display Component
@@ -195,8 +244,8 @@
   (let [timer-state (:timer-state @app-state)
         remaining (:remaining-seconds timer-state)
         formatted (format/seconds-to-mm-ss remaining)]
-    [:div.timer-display
-     [:div.timer-value formatted]]))
+    [:div.timer-display {:role "timer" :aria-live "polite" :aria-atomic "true"}
+     [:div.timer-value {:aria-label (str "Time remaining: " formatted)} formatted]]))
 
 ;; Control Panel Component
 (defn control-panel []
@@ -204,22 +253,25 @@
         state-keyword (:session-state timer-state)
         session (:current-session @app-state)]
     (when session
-      [:div.control-panel
+      [:div.control-panel {:role "group" :aria-label "Timer controls"}
        [:h3 "Controls"]
        (case state-keyword
          :not-started
          [:button {:on-click #(do (timer/start!)
-                                  (update-timer-state! (timer/get-state)))}
+                                  (update-timer-state! (timer/get-state)))
+                   :aria-label "Start workout (Spacebar)"}
           "Start"]
          
          :running
          [:button {:on-click #(do (timer/pause!)
-                                  (update-timer-state! (timer/get-state)))}
+                                  (update-timer-state! (timer/get-state)))
+                   :aria-label "Pause workout (Spacebar)"}
           "Pause"]
          
          :paused
          [:button {:on-click #(do (timer/start!)
-                                  (update-timer-state! (timer/get-state)))}
+                                  (update-timer-state! (timer/get-state)))
+                   :aria-label "Resume workout (Spacebar)"}
           "Resume"]
          
          :completed
@@ -229,7 +281,8 @@
        
        [:button {:on-click #(do (timer/restart!)
                                 (update-timer-state! (timer/get-state)))
-                 :disabled (= state-keyword :not-started)}
+                 :disabled (= state-keyword :not-started)
+                 :aria-label "Restart workout (R key)"}
         "Restart"]])))
 
 ;; Completion Screen Component
@@ -247,52 +300,62 @@
 ;; Exercise Library Panel Component
 (defn exercise-library-panel []
   (let [exercises (:exercises @app-state)]
-    [:div.exercise-library-panel
+    [:div.exercise-library-panel {:role "region" :aria-label "Exercise Library"}
      [:h2 "Exercise Library"]
-     [:div.library-stats
+     [:div.library-stats {:aria-live "polite"}
       (str (count exercises) " exercises"
            " (" (count (filter #(:enabled % true) exercises)) " enabled)")]
-     [:div.exercise-list
+     [:div.exercise-list {:role "list"}
       (for [ex exercises]
         (let [enabled? (:enabled ex true)
               ex-name (:name ex)
               ex-weight (:weight ex)]
           ^{:key ex-name}
-          [:div.exercise-item {:class (when-not enabled? "disabled")}
+          [:div.exercise-item {:class (when-not enabled? "disabled")
+                               :role "listitem"}
            [:div.exercise-info
             [:span.exercise-name ex-name]
             [:span.exercise-weight (str "Weight: " ex-weight)]]
-           [:div.exercise-controls
+           [:div.exercise-controls {:role "group" 
+                                    :aria-label (str "Controls for " ex-name)}
             [:button.weight-btn {:on-click #(do
                                               (library/update-exercise-weight! ex-name (max 0.5 (- ex-weight 0.1)))
                                               (update-exercises! (library/load-library)))
+                                 :aria-label (str "Decrease weight for " ex-name " (currently " ex-weight ")")
                                  :title "Decrease weight"}
              "−"]
             [:button.weight-btn {:on-click #(do
                                               (library/update-exercise-weight! ex-name (min 2.0 (+ ex-weight 0.1)))
                                               (update-exercises! (library/load-library)))
+                                 :aria-label (str "Increase weight for " ex-name " (currently " ex-weight ")")
                                  :title "Increase weight"}
              "+"]
             [:button.toggle-btn {:on-click #(do
                                               (library/toggle-exercise-enabled! ex-name)
                                               (update-exercises! (library/load-library)))
                                  :class (if enabled? "enabled" "disabled")
+                                 :aria-label (str (if enabled? "Disable" "Enable") " " ex-name " in sessions")
+                                 :aria-pressed (if enabled? "true" "false")
                                  :title (if enabled? "Exclude from sessions" "Include in sessions")}
              (if enabled? "✓" "✗")]
             [:button.delete-btn {:on-click #(when (js/confirm (str "Delete '" ex-name "'?"))
                                               (library/delete-exercise! ex-name)
                                               (update-exercises! (library/load-library)))
+                                 :aria-label (str "Delete " ex-name)
                                  :title "Delete exercise"}
              "🗑"]]]))]
      [:div.library-actions
-      [:button {:on-click #(library/export-and-download!)}
+      [:button {:on-click #(library/export-and-download!)
+                :aria-label "Export exercise library to JSON file"}
        "Export Library"]
-      [:button {:on-click #(js/alert "Import functionality - file picker would go here")}
+      [:button {:on-click #(js/alert "Import functionality - file picker would go here")
+                :aria-label "Import exercise library from JSON file"}
        "Import Library"]
       [:button {:on-click #(update-ui! {:show-add-exercise true
                                         :add-exercise-name ""
                                         :add-exercise-weight 1.0
-                                        :add-exercise-error nil})}
+                                        :add-exercise-error nil})
+                :aria-label "Add new exercise to library"}
        "Add Exercise"]]]))
 
 ;; Add Exercise Dialog Component
@@ -304,12 +367,15 @@
         error (:add-exercise-error ui)
         input-ref (atom nil)]
     (when show?
-      [:div.modal-overlay {:on-click #(update-ui! {:show-add-exercise false})}
+      [:div.modal-overlay {:on-click #(update-ui! {:show-add-exercise false})
+                           :role "dialog"
+                           :aria-modal "true"
+                           :aria-labelledby "add-exercise-title"}
        [:div.modal-content {:on-click #(.stopPropagation %)}
-        [:h2 "Add New Exercise"]
+        [:h2#add-exercise-title "Add New Exercise"]
         
         (when error
-          [:div.error-message error])
+          [:div.error-message {:role "alert" :aria-live "assertive"} error])
         
         [:div.form-group
          [:label {:for "exercise-name"} "Exercise Name:"]
@@ -317,6 +383,7 @@
                   :id "exercise-name"
                   :value name
                   :placeholder "e.g., Push-ups"
+                  :aria-required "true"
                   :ref (fn [el] 
                          (reset! input-ref el)
                          (when el (.focus el)))
@@ -333,12 +400,18 @@
                   :max 2.0
                   :step 0.1
                   :value weight
+                  :aria-valuemin 0.5
+                  :aria-valuemax 2.0
+                  :aria-valuenow weight
+                  :aria-label "Exercise difficulty weight"
                   :on-change #(update-ui! {:add-exercise-weight (js/parseFloat (-> % .-target .-value))})}]]
         
         [:div.modal-actions
-         [:button {:on-click #(add-exercise! name weight)}
+         [:button {:on-click #(add-exercise! name weight)
+                   :aria-label "Add exercise to library"}
           "Add Exercise"]
-         [:button {:on-click #(update-ui! {:show-add-exercise false})}
+         [:button {:on-click #(update-ui! {:show-add-exercise false})
+                   :aria-label "Cancel and close dialog"}
           "Cancel"]]]])))
 
 ;; ============================================================================
@@ -350,7 +423,7 @@
    [:header
     [:h1 "Sweat Roulette"]]
    
-   [:main
+   [:main#main-content
     [:div.session-area
      [configuration-panel]
      
@@ -412,6 +485,8 @@
   "Initialize the application."
   (initialize-app-state!)
   (setup-timer-callbacks!)
+  ;; Add keyboard event listener
+  (.addEventListener js/document "keydown" handle-keyboard-shortcuts!)
   (rdom/render [app]
                (.getElementById js/document "app")))
 
