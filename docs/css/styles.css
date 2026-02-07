@@ -110,14 +110,17 @@ main {
 .setup-view {
   display: flex;
   gap: 20px;
+  flex-wrap: wrap;
 }
 
 .setup-view .session-area {
   flex: 1;
+  min-width: 300px;
 }
 
 .setup-view .library-area {
   flex: 1;
+  min-width: 300px;
 }
 
 /* Session area - full width when active */
