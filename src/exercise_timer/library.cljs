@@ -347,7 +347,7 @@
   "Add a new exercise to the library with validation.
    
    Parameters:
-   - exercise: Exercise map with :name, :difficulty, and optionally :equipment keys
+   - exercise: Exercise map with :name, :difficulty, and optionally :equipment and :enabled keys
    
    Returns:
    - {:ok exercise} on success
@@ -359,9 +359,11 @@
    
    Validates: Requirements 6.4, 7.1, 7.2, 7.3, 7.4, 7.5"
   [exercise]
-  (let [{:keys [name difficulty equipment]} exercise
+  (let [{:keys [name difficulty equipment enabled]} exercise
         ;; Default equipment to ["None"] if not provided
-        equipment (or equipment ["None"])]
+        equipment (or equipment ["None"])
+        ;; Default enabled to true if not provided
+        enabled (if (nil? enabled) true enabled)]
     (cond
       ;; Validate name
       (not (valid-name? name))
@@ -383,7 +385,8 @@
       :else
       (let [trimmed-exercise {:name (clojure.string/trim name)
                               :difficulty difficulty
-                              :equipment equipment}
+                              :equipment equipment
+                              :enabled enabled}
             updated-library (conj @library-state trimmed-exercise)
             save-result (save-library! updated-library)]
         (if (contains? save-result :ok)

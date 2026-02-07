@@ -150,9 +150,10 @@
    - Updates app state
    - Closes edit exercise dialog"
   [original-name new-name difficulty equipment enabled]
-  (let [is-new? (empty? original-name)]
-    ;; Delete old exercise if name changed
-    (when (and (not is-new?) (not= original-name new-name))
+  (let [is-new? (empty? original-name)
+        name-changed? (and (not is-new?) (not= original-name new-name))]
+    ;; Delete old exercise if editing (either name changed or just updating properties)
+    (when (not is-new?)
       (library/delete-exercise! original-name))
     
     (let [result (library/add-exercise! {:name new-name :difficulty difficulty :equipment equipment :enabled enabled})]
@@ -167,8 +168,8 @@
                        :edit-exercise-enabled true
                        :edit-exercise-error nil}))
         (do
-          ;; If update failed and we renamed, restore the original exercise
-          (when (and (not is-new?) (not= original-name new-name))
+          ;; If update failed, restore the original exercise
+          (when (not is-new?)
             (library/add-exercise! {:name original-name :difficulty difficulty :equipment equipment :enabled enabled}))
           (update-exercises! (library/load-library))
           (update-ui! {:edit-exercise-error (:error result)}))))))
@@ -297,7 +298,7 @@
         session-active? (not= :not-started (get-in @app-state [:timer-state :session-state]))]
     [:div.configuration-panel
      [:h2 "Session Configuration"]
-     [:div.form-group
+     [:div.form-group.inline-input
       [:label {:for "duration"} "Session Duration (minutes):"]
       [:input {:type "number"
                :id "duration"
@@ -328,32 +329,32 @@
                                                 (disj current-equipment equipment)))))}]
               [:span equipment]])]]))
      
-     ;; Speech toggle
-     (when (speech/speech-available?)
-       [:div.form-group
-        [:label
+     [:div.button-row
+      [:button {:on-click (fn []
+                            (let [all-exercises (:exercises @app-state)
+                                  enabled-exercises (vec (filter #(:enabled % true) all-exercises))
+                                  session-config (:session-config @app-state)
+                                  duration (:session-duration-minutes ui)
+                                  equipment (:equipment session-config)
+                                  config (session/make-session-config duration equipment)
+                                  session-plan (session/generate-session config enabled-exercises)]
+                              (update-current-session! session-plan)
+                              (timer/initialize-session! session-plan)
+                              (update-timer-state! (timer/get-state))
+                              ;; Reset speech announcement tracking for new session
+                              (speech/reset-announcement-tracking!)))
+                :disabled (or session-active? 
+                             (empty? (:exercises @app-state))
+                             (empty? (filter #(:enabled % true) (:exercises @app-state))))}
+       "Start Session"]
+      
+      ;; Speech toggle
+      (when (speech/speech-available?)
+        [:label.voice-checkbox
          [:input {:type "checkbox"
                   :checked speech-enabled
                   :on-change #(update-ui! {:speech-enabled (-> % .-target .-checked)})}]
-         " 🔊 Voice announcements (exercise names + time every 10s)"]])
-     
-     [:button {:on-click (fn []
-                           (let [all-exercises (:exercises @app-state)
-                                 enabled-exercises (vec (filter #(:enabled % true) all-exercises))
-                                 session-config (:session-config @app-state)
-                                 duration (:session-duration-minutes ui)
-                                 equipment (:equipment session-config)
-                                 config (session/make-session-config duration equipment)
-                                 session-plan (session/generate-session config enabled-exercises)]
-                             (update-current-session! session-plan)
-                             (timer/initialize-session! session-plan)
-                             (update-timer-state! (timer/get-state))
-                             ;; Reset speech announcement tracking for new session
-                             (speech/reset-announcement-tracking!)))
-               :disabled (or session-active? 
-                            (empty? (:exercises @app-state))
-                            (empty? (filter #(:enabled % true) (:exercises @app-state))))}
-      "Start Session"]]))
+         [:span "🔊 Voice announcements"]])]]))
 
 ;; Exercise Display Component
 (defn exercise-display []
@@ -502,26 +503,27 @@
         (let [enabled? (:enabled ex true)
               ex-name (:name ex)
               ex-difficulty (:difficulty ex)
-              ex-equipment (:equipment ex ["None"])]
+              ex-equipment (:equipment ex ["None"])
+              open-edit-fn #(update-ui! {:show-edit-exercise true
+                                         :edit-exercise-name ex-name
+                                         :edit-exercise-original-name ex-name
+                                         :edit-exercise-difficulty ex-difficulty
+                                         :edit-exercise-equipment (clojure.string/join ", " ex-equipment)
+                                         :edit-exercise-enabled enabled?
+                                         :edit-exercise-error nil})]
           ^{:key ex-name}
           [:div.exercise-item {:class (when-not enabled? "disabled")
-                               :role "listitem"}
+                               :role "listitem"
+                               :on-click open-edit-fn
+                               :style {:cursor "pointer"}
+                               :aria-label (str "Edit " ex-name)}
            [:div.exercise-info
             [:span.exercise-name ex-name]
-            [:span.exercise-difficulty (str "Difficulty: " ex-difficulty)]
-            [:span.exercise-equipment (str "Equipment: " (clojure.string/join ", " ex-equipment))]]
-           [:div.exercise-controls {:role "group" 
-                                    :aria-label (str "Controls for " ex-name)}
-            [:button.edit-btn {:on-click #(update-ui! {:show-edit-exercise true
-                                                        :edit-exercise-name ex-name
-                                                        :edit-exercise-original-name ex-name
-                                                        :edit-exercise-difficulty ex-difficulty
-                                                        :edit-exercise-equipment (clojure.string/join ", " ex-equipment)
-                                                        :edit-exercise-enabled enabled?
-                                                        :edit-exercise-error nil})
-                               :aria-label (str "Edit " ex-name)
-                               :title "Edit exercise"}
-             "✏️"]]]))]
+            [:span.exercise-difficulty 
+             (str "Difficulty: " ex-difficulty
+                  (when-not (or (= ex-equipment ["None"]) 
+                               (empty? ex-equipment))
+                    (str ", " (clojure.string/join ", " ex-equipment))))]]]))]
      [:div.library-actions
       [:button {:on-click #(library/export-and-download!)
                 :aria-label "Export exercise library to JSON file"}
