@@ -618,9 +618,9 @@
                               exercises))
         
         ;; Step 3: Determine number of exercises to select
-        ;; Aim for approximately 60 seconds per exercise for better workout pacing
+        ;; Aim for approximately 40 seconds per exercise for better workout pacing
         ;; Use at least 3 exercises for variety, but cap at available exercises
-        target-avg-duration 60
+        target-avg-duration 40
         ideal-num-exercises (max 3 (int (/ total-duration-seconds target-avg-duration)))
         num-exercises (min ideal-num-exercises (count filtered-exercises))
         
