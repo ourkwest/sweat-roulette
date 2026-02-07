@@ -31,11 +31,32 @@ header {
   padding: 20px;
   text-align: center;
   transition: background 0.3s ease;
+  position: relative;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.2);
+  }
 }
 
 header h1 {
   font-size: 2rem;
   font-weight: 600;
+}
+
+.session-timer {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.2rem;
+  font-weight: 500;
+  font-family: 'Courier New', monospace;
 }
 
 main {
