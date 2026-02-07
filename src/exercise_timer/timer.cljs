@@ -344,7 +344,8 @@
       (if (< current-index (count exercises))
         (let [current-exercise (nth exercises current-index)
               exercise-name (get-in current-exercise [:exercise :name])
-              search-url (str "https://www.google.com/search?q=" (js/encodeURIComponent exercise-name))]
+              search-query (str "how to do " exercise-name " exercises")
+              search-url (str "https://www.google.com/search?q=" (js/encodeURIComponent search-query))]
           (when (exists? js/window)
             (js/window.open search-url "_blank"))
           {:ok true :url search-url})

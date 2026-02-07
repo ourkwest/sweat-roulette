@@ -503,7 +503,7 @@
         (let [enabled? (:enabled ex true)
               ex-name (:name ex)
               ex-difficulty (:difficulty ex)
-              ex-equipment (:equipment ex ["None"])
+              ex-equipment (:equipment ex [])
               open-edit-fn #(update-ui! {:show-edit-exercise true
                                          :edit-exercise-name ex-name
                                          :edit-exercise-original-name ex-name
@@ -521,8 +521,7 @@
             [:span.exercise-name ex-name]
             [:span.exercise-difficulty 
              (str "Difficulty: " ex-difficulty
-                  (when-not (or (= ex-equipment ["None"]) 
-                               (empty? ex-equipment))
+                  (when-not (empty? ex-equipment)
                     (str ", " (clojure.string/join ", " ex-equipment))))]]]))]
      [:div.library-actions
       [:button {:on-click #(library/export-and-download!)
@@ -566,20 +565,50 @@
             equipment-str (:edit-exercise-equipment ui "")
             enabled (:edit-exercise-enabled ui true)
             error (:edit-exercise-error ui)
+            new-equipment-input (:edit-exercise-new-equipment ui "")
             is-new? (empty? original-name)
+            
+            ;; Parse current equipment from string to set
+            current-equipment (if (empty? equipment-str)
+                               #{}
+                               (set (map clojure.string/trim (clojure.string/split equipment-str #","))))
+            
+            ;; Get all known equipment types and merge with current equipment
+            ;; This ensures newly added equipment types show up immediately
+            all-equipment-types (clojure.set/union (library/get-equipment-types) current-equipment)
             
             ;; Dialog configuration
             title (if is-new? "Add New Exercise" "Edit Exercise")
             button-text (if is-new? "Add Exercise" "Save Changes")
             
             ;; Close handler
-            close-fn #(update-ui! {:show-edit-exercise false})
+            close-fn #(update-ui! {:show-edit-exercise false
+                                   :edit-exercise-new-equipment ""})
             
             ;; Save handler
-            save-fn #(let [equipment-vec (if (empty? equipment-str)
-                                           ["None"]
-                                           (vec (map clojure.string/trim (clojure.string/split equipment-str #","))))]
-                      (save-exercise! original-name name difficulty equipment-vec enabled))]
+            save-fn #(let [equipment-vec (if (empty? current-equipment)
+                                           []
+                                           (vec current-equipment))]
+                      (save-exercise! original-name name difficulty equipment-vec enabled))
+            
+            ;; Toggle equipment handler
+            toggle-equipment-fn (fn [equip]
+                                 (let [new-equipment (if (contains? current-equipment equip)
+                                                      (disj current-equipment equip)
+                                                      (conj current-equipment equip))
+                                       new-str (if (empty? new-equipment)
+                                                ""
+                                                (clojure.string/join ", " (sort new-equipment)))]
+                                   (update-ui! {:edit-exercise-equipment new-str})))
+            
+            ;; Add new equipment handler
+            add-equipment-fn (fn []
+                              (when-not (empty? new-equipment-input)
+                                (let [trimmed (clojure.string/trim new-equipment-input)
+                                      new-equipment (conj current-equipment trimmed)
+                                      new-str (clojure.string/join ", " (sort new-equipment))]
+                                  (update-ui! {:edit-exercise-equipment new-str
+                                               :edit-exercise-new-equipment ""}))))]
         
         [:div.modal-overlay {:on-click close-fn
                              :role "dialog"
@@ -618,19 +647,40 @@
                     :on-change #(update-ui! {:edit-exercise-difficulty (js/parseFloat (-> % .-target .-value))})}]]
           
           [:div.form-group
-           [:label {:for "exercise-equipment"} "Equipment (comma-separated, or leave empty for 'None'):"]
-           [:input {:type "text"
-                    :id "exercise-equipment"
-                    :value equipment-str
-                    :placeholder "e.g., Dumbbells, A wall"
-                    :on-change #(update-ui! {:edit-exercise-equipment (-> % .-target .-value)})}]]
+           [:label "Equipment (select all that apply):"]
+           [:div.equipment-checkboxes {:role "group" :aria-label "Equipment selection"}
+            (for [equipment (sort all-equipment-types)]
+              ^{:key equipment}
+              [:label.equipment-checkbox
+               [:input {:type "checkbox"
+                        :checked (contains? current-equipment equipment)
+                        :on-change #(toggle-equipment-fn equipment)}]
+               [:span equipment]])]
+           
+           ;; Add new equipment type
+           [:div.add-equipment {:style {:margin-top "10px" :display "flex" :gap "8px"}}
+            [:input {:type "text"
+                     :value new-equipment-input
+                     :placeholder "Add new equipment type"
+                     :style {:flex "1"}
+                     :on-change #(update-ui! {:edit-exercise-new-equipment (-> % .-target .-value)})
+                     :on-key-press #(when (= (.-key %) "Enter") 
+                                     (.preventDefault %)
+                                     (add-equipment-fn))}]
+            [:button {:on-click #(do
+                                   (.preventDefault %)
+                                   (.stopPropagation %)
+                                   (add-equipment-fn))
+                      :disabled (empty? new-equipment-input)
+                      :style {:min-width "60px"}}
+             "Add"]]]
           
           [:div.form-group
-           [:label
+           [:label.equipment-checkbox
             [:input {:type "checkbox"
                      :checked enabled
                      :on-change #(update-ui! {:edit-exercise-enabled (-> % .-target .-checked)})}]
-            " Include in sessions"]]
+            [:span "Include in sessions"]]]
           
           [:div.modal-actions
            [:button {:on-click save-fn
@@ -639,6 +689,15 @@
            [:button {:on-click close-fn
                      :aria-label "Cancel and close dialog"}
             "Cancel"]
+           ;; Search button (only show when there's a name)
+           (when-not (empty? name)
+             [:button {:on-click #(let [search-query (str "how to do " name " exercises")
+                                        search-url (str "https://www.google.com/search?q=" (js/encodeURIComponent search-query))]
+                                    (when (exists? js/window)
+                                      (js/window.open search-url "_blank")))
+                       :aria-label (str "Search for " name " instructions")
+                       :style {:background "#3498db"}}
+              "Search"])
            ;; Delete button (only show when editing existing exercise)
            (when-not is-new?
              [:button.delete-btn {:on-click #(when (js/confirm (str "Delete '" original-name "'?"))

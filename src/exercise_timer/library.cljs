@@ -68,7 +68,7 @@
   (if (contains? exercise :equipment)
     exercise
     ;; Add default equipment for backward compatibility
-    (assoc exercise :equipment ["None"])))
+    (assoc exercise :equipment [])))
 
 (defn- read-from-storage
   "Read data from localStorage with JSON deserialization.
@@ -219,20 +219,26 @@
 (def ^:private default-exercises
   "Default set of exercises to initialize the library.
    Validates: Requirements 6.1, 6.6"
-  [{:name "Push-ups" :difficulty 1.2 :equipment ["None"]}
-   {:name "Squats" :difficulty 1.0 :equipment ["None"]}
-   {:name "Plank" :difficulty 1.5 :equipment ["None"]}
-   {:name "Jumping Jacks" :difficulty 0.8 :equipment ["None"]}
-   {:name "Lunges" :difficulty 1.0 :equipment ["None"]}
-   {:name "Mountain Climbers" :difficulty 1.3 :equipment ["None"]}
-   {:name "Burpees" :difficulty 1.8 :equipment ["None"]}
-   {:name "High Knees" :difficulty 0.9 :equipment ["None"]}
-   {:name "Sit-ups" :difficulty 1.0 :equipment ["None"]}
+  [{:name "Push-ups" :difficulty 1.2 :equipment []}
+   {:name "Squats" :difficulty 1.0 :equipment []}
+   {:name "Plank" :difficulty 1.5 :equipment []}
+   {:name "Jumping Jacks" :difficulty 0.8 :equipment []}
+   {:name "Lunges" :difficulty 1.0 :equipment []}
+   {:name "Mountain Climbers" :difficulty 1.3 :equipment []}
+   {:name "Burpees" :difficulty 1.8 :equipment []}
+   {:name "High Knees" :difficulty 0.9 :equipment []}
+   {:name "Sit-ups" :difficulty 1.0 :equipment []}
    {:name "Wall Sit" :difficulty 1.4 :equipment ["A wall"]}
-   {:name "Russian Twists" :difficulty 1.1 :equipment ["None"]}
-   {:name "Kneel to Stand" :difficulty 1.6 :equipment ["None"]}
-   {:name "Air Punches" :difficulty 0.7 :equipment ["None"]}
-   {:name "Plank Shoulder Taps" :difficulty 1.4 :equipment ["None"]}])
+   {:name "Russian Twists" :difficulty 1.1 :equipment []}
+   {:name "Kneel to Stand" :difficulty 1.6 :equipment []}
+   {:name "Air Punches" :difficulty 0.7 :equipment []}
+   {:name "Plank Shoulder Taps" :difficulty 1.4 :equipment []}
+   {:name "Dumbbell Bicep Curls" :difficulty 1.2 :equipment ["Dumbbells"]}
+   {:name "Dumbbell Shoulder Press" :difficulty 1.4 :equipment ["Dumbbells"]}
+   {:name "Dumbbell Rows" :difficulty 1.3 :equipment ["Dumbbells"]}
+   {:name "Dumbbell Goblet Squats" :difficulty 1.3 :equipment ["Dumbbells"]}
+   {:name "Dumbbell Chest Press" :difficulty 1.5 :equipment ["Dumbbells", "A bench"]}
+   {:name "Dumbbell Lateral Raises" :difficulty 1.1 :equipment ["Dumbbells"]}])
 
 (defn initialize-defaults!
   "Initialize the exercise library with default exercises.
@@ -360,8 +366,8 @@
    Validates: Requirements 6.4, 7.1, 7.2, 7.3, 7.4, 7.5"
   [exercise]
   (let [{:keys [name difficulty equipment enabled]} exercise
-        ;; Default equipment to ["None"] if not provided
-        equipment (or equipment ["None"])
+        ;; Default equipment to empty vector if not provided
+        equipment (or equipment [])
         ;; Default enabled to true if not provided
         enabled (if (nil? enabled) true enabled)]
     (cond
@@ -525,7 +531,7 @@
     ;; Add default equipment if missing (backward compatibility)
     {:ok (if (contains? exercise :equipment)
            exercise
-           (assoc exercise :equipment ["None"]))}))
+           (assoc exercise :equipment []))}))
 
 (defn- validate-import-data
   "Validate imported JSON data structure.

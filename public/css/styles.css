@@ -458,7 +458,14 @@ button:disabled {
 }
 
 .exercise-item.disabled {
-  opacity: 0.5;
+  opacity: 0.4;
+  background: #f5f5f5;
+  text-decoration: line-through;
+  color: #95a5a6;
+}
+
+.exercise-item.disabled:hover {
+  background: #ececec;
 }
 
 .exercise-item .exercise-info {

@@ -609,11 +609,11 @@
                              ;; Otherwise, filter by equipment
                              (filterv
                               (fn [exercise]
-                                (let [required-equipment (:equipment exercise ["None"])]
-                                  ;; Exercise is included if all required equipment is available or is "None"
+                                (let [required-equipment (:equipment exercise [])]
+                                  ;; Exercise is included if all required equipment is available
+                                  ;; Empty equipment means no equipment needed
                                   (every? (fn [eq]
-                                            (or (= eq "None")
-                                                (contains? equipment-set eq)))
+                                            (contains? equipment-set eq))
                                           required-equipment)))
                               exercises))
         
