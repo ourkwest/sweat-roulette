@@ -480,3 +480,86 @@ button:disabled {
   margin-bottom: 15px;
   font-weight: 500;
 }
+
+/* Import Dialog Styles */
+.import-dialog {
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.import-dialog p {
+  margin-bottom: 20px;
+  color: #555;
+  line-height: 1.5;
+}
+
+.conflict-list {
+  margin-bottom: 20px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.conflict-item {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 15px;
+  margin-bottom: 15px;
+}
+
+.conflict-header {
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+  color: #2c3e50;
+}
+
+.conflict-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.conflict-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: white;
+  border: 2px solid #dee2e6;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 0.3s, background-color 0.3s;
+}
+
+.conflict-option:hover {
+  border-color: #2980b9;
+  background-color: #f0f8ff;
+}
+
+.conflict-option input[type="radio"] {
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+}
+
+.conflict-option span {
+  flex: 1;
+  color: #2c3e50;
+}
+
+.conflict-option input[type="radio"]:checked + span {
+  font-weight: 600;
+  color: #2980b9;
+}
+
+/* Import button wrapper */
+.import-button {
+  display: inline-block;
+  flex: 1;
+  min-width: 120px;
+}
+
+.import-button button {
+  width: 100%;
+}

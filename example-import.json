@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "exercises": [
+    {
+      "name": "Push-ups",
+      "weight": 1.5
+    },
+    {
+      "name": "Yoga Flow",
+      "weight": 0.9
+    },
+    {
+      "name": "Box Jumps",
+      "weight": 1.7
+    },
+    {
+      "name": "Bicycle Crunches",
+      "weight": 1.0
+    }
+  ]
+}

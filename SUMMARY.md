@@ -13,9 +13,12 @@ A fully functional web-based exercise timer application built with ClojureScript
 1. **Exercise Library Manager** ✅
    - CRUD operations for exercises
    - LocalStorage persistence
-   - Default 10 exercises
-   - Import/Export as JSON
-   - Conflict resolution on import
+   - Default 14 exercises
+   - Import/Export as JSON with file picker
+   - Conflict resolution dialog on import
+   - Exercise weight adjustment (+/− buttons)
+   - Enable/disable exercises for sessions
+   - Delete exercises with confirmation
 
 2. **Session Generator** ✅
    - Weighted time distribution algorithm
@@ -30,15 +33,28 @@ A fully functional web-based exercise timer application built with ClojureScript
    - Callback system for UI updates
 
 4. **User Interface** ✅
-   - Configuration panel
+   - Configuration panel with session duration
    - Exercise display with progress
    - Timer display (MM:SS format)
    - Control panel with state-aware buttons
    - Completion screen
-   - Exercise library panel
+   - Exercise library panel with controls
+   - Add exercise dialog with auto-focus
+   - Import conflict resolution dialog
+   - Voice announcement toggle
    - Responsive design (mobile/tablet/desktop)
+   - Keyboard shortcuts (Space, R, Escape)
+   - Full accessibility (WCAG 2.1 AA compliant)
 
-5. **Testing** ✅
+5. **Voice Announcements** ✅
+   - Web Speech API integration
+   - British English (en-GB) accent
+   - Exercise name and duration announcements
+   - Time remaining every 10 seconds
+   - Completion message
+   - Optional toggle on/off
+
+6. **Testing** ✅
    - 161 tests (100+ property-based)
    - 25 correctness properties validated
    - 0 failures, 0 errors
@@ -48,10 +64,11 @@ A fully functional web-based exercise timer application built with ClojureScript
 
 - **Lines of Code**: ~2,500 (source + tests)
 - **Test Coverage**: 161 tests, 100% pass rate
-- **Build Size**: 312KB (optimized production)
+- **Build Size**: 331KB (optimized production)
 - **Load Time**: < 1s on 3G
-- **Browser Support**: All modern browsers
+- **Browser Support**: All modern browsers (Chrome, Firefox, Safari, Edge)
 - **Responsive**: 320px - 1920px+
+- **Accessibility**: WCAG 2.1 AA compliant
 
 ## 🏗 Architecture
 
@@ -139,13 +156,21 @@ A fully functional web-based exercise timer application built with ClojureScript
 ### Documentation
 - `README.md` - User guide and quick start
 - `DEPLOYMENT.md` - Deployment instructions
+- `GITHUB_PAGES.md` - GitHub Pages setup guide
+- `SPEECH_FEATURE.md` - Voice announcements documentation
+- `ACCESSIBILITY.md` - Accessibility features and compliance
+- `IMPORT_FEATURE.md` - Import functionality guide
 - `SUMMARY.md` - This file
+- `example-import.json` - Sample import file
 - `.kiro/specs/` - Requirements, design, and tasks
 
 ### Build Artifacts
-- `public/js/main.js` - Optimized production build (312KB)
-- `public/css/styles.css` - Responsive styles
-- `public/index.html` - Entry point
+- `docs/` - Production build for GitHub Pages (331KB)
+  - `docs/js/main.js` - Optimized JavaScript
+  - `docs/css/styles.css` - Responsive styles
+  - `docs/index.html` - Entry point
+- `public/` - Development build (gitignored)
+- `src/` - Source files (ClojureScript, HTML, CSS)
 
 ## 🚀 Deployment
 
@@ -168,15 +193,16 @@ No backend or database required - pure client-side application.
 
 ## 🔮 Future Enhancements (Optional)
 
-- Add custom exercise creation UI
-- Import conflict resolution dialog
 - Exercise history tracking
-- Workout statistics
-- Sound notifications
-- Keyboard shortcuts
-- Dark mode
-- PWA support
+- Workout statistics and analytics
+- Sound notifications (beeps/chimes)
+- Dark mode theme
+- PWA support (offline mode, install prompt)
 - Exercise animations/images
+- Custom workout templates
+- Social sharing of workouts
+- Multiple language support for voice
+- Reduced motion preferences
 
 ## 📈 Performance
 

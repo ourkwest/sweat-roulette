@@ -192,11 +192,38 @@ Each exercise has four controls:
 
 ## 📥📤 Import/Export
 
-- **Export**: Download your exercise library as JSON with timestamp
-- **Import**: Upload a JSON file to merge exercises
-  - Detects conflicts (same name, different weight)
-  - Lets you choose which version to keep
-  - Skips identical duplicates automatically
+### Export
+- Click "Export Library" to download your exercise library as JSON
+- File is named with timestamp: `exercise-library-YYYYMMDD-HHMMSS.json`
+- Contains all exercises with their names, weights, and enabled status
+
+### Import
+- Click "Import Library" to select a JSON file
+- The app validates the file format and exercises
+- **Automatic merge** for new exercises and identical duplicates
+- **Conflict resolution** for exercises with same name but different weights:
+  - Dialog shows each conflict with existing vs imported values
+  - Choose which version to keep for each exercise
+  - Complete the import with your selections
+
+### Import Behavior
+- **New exercises**: Added to your library automatically
+- **Identical duplicates**: Skipped (same name and weight)
+- **Conflicts**: You choose which version to keep
+- **Invalid data**: Import fails with clear error message
+
+Example import file format:
+```json
+{
+  "version": 1,
+  "exercises": [
+    {"name": "Push-ups", "weight": 1.2},
+    {"name": "Squats", "weight": 1.0}
+  ]
+}
+```
+
+See `example-import.json` for a sample import file.
 
 ## 🌐 Browser Compatibility
 

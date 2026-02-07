@@ -149,6 +149,77 @@
                      :add-exercise-error nil}))
       (update-ui! {:add-exercise-error (:error result)}))))
 
+(defn handle-import-file!
+  "Handle file selection for import.
+   
+   Parameters:
+   - file: JavaScript File object from file input
+   
+   Side effects:
+   - Reads file content
+   - Parses JSON and detects conflicts
+   - Updates UI state with import data or error"
+  [file]
+  (when file
+    (let [reader (js/FileReader.)]
+      (set! (.-onload reader)
+            (fn [e]
+              (let [json-str (-> e .-target .-result)
+                    import-result (library/import-from-json json-str)]
+                (if (contains? import-result :ok)
+                  (let [{:keys [exercises conflicts]} (:ok import-result)]
+                    (if (empty? conflicts)
+                      ;; No conflicts, merge immediately
+                      (let [merge-result (library/merge-and-save-import! exercises {})]
+                        (if (contains? merge-result :ok)
+                          (do
+                            (update-exercises! (library/load-library))
+                            (let [{:keys [added skipped updated]} (:ok merge-result)]
+                              (js/alert (str "Import successful!\n"
+                                           "Added: " (count added) "\n"
+                                           "Skipped (duplicates): " (count skipped) "\n"
+                                           "Updated: " (count updated)))))
+                          (js/alert (str "Import failed: " (:error merge-result)))))
+                      ;; Has conflicts, show dialog
+                      (update-ui! {:show-import-dialog true
+                                   :import-exercises exercises
+                                   :import-conflicts conflicts
+                                   :conflict-resolutions (into {} (map (fn [c] [(:name c) :keep-existing]) conflicts))})))
+                  (js/alert (str "Import failed: " (:error import-result)))))))
+      (.readAsText reader file))))
+
+(defn complete-import!
+  "Complete the import after user resolves conflicts.
+   
+   Side effects:
+   - Merges imported exercises with conflict resolutions
+   - Updates app state
+   - Closes import dialog"
+  []
+  (let [ui (:ui @app-state)
+        exercises (:import-exercises ui)
+        resolutions (:conflict-resolutions ui)
+        merge-result (library/merge-and-save-import! exercises resolutions)]
+    (if (contains? merge-result :ok)
+      (do
+        (update-exercises! (library/load-library))
+        (let [{:keys [added skipped updated]} (:ok merge-result)]
+          (update-ui! {:show-import-dialog false
+                       :import-exercises nil
+                       :import-conflicts nil
+                       :conflict-resolutions nil})
+          (js/alert (str "Import successful!\n"
+                       "Added: " (count added) "\n"
+                       "Skipped (duplicates): " (count skipped) "\n"
+                       "Updated: " (count updated)))))
+      (do
+        (update-ui! {:show-import-dialog false
+                     :import-exercises nil
+                     :import-conflicts nil
+                     :conflict-resolutions nil})
+        (js/alert (str "Import failed: " (:error merge-result)))))))
+
+
 (defn get-current-exercise
   "Get the current exercise from the session.
    
@@ -348,9 +419,16 @@
       [:button {:on-click #(library/export-and-download!)
                 :aria-label "Export exercise library to JSON file"}
        "Export Library"]
-      [:button {:on-click #(js/alert "Import functionality - file picker would go here")
-                :aria-label "Import exercise library from JSON file"}
-       "Import Library"]
+      [:label.import-button
+       [:input {:type "file"
+                :accept ".json"
+                :style {:display "none"}
+                :on-change #(when-let [file (-> % .-target .-files (aget 0))]
+                             (handle-import-file! file)
+                             (set! (-> % .-target .-value) ""))}]
+       [:button {:on-click #(.click (-> % .-target .-previousSibling))
+                 :aria-label "Import exercise library from JSON file"}
+        "Import Library"]]
       [:button {:on-click #(update-ui! {:show-add-exercise true
                                         :add-exercise-name ""
                                         :add-exercise-weight 1.0
@@ -414,6 +492,60 @@
                    :aria-label "Cancel and close dialog"}
           "Cancel"]]]])))
 
+;; Import Conflict Dialog Component
+(defn import-conflict-dialog []
+  (let [ui (:ui @app-state)
+        show? (:show-import-dialog ui)
+        conflicts (:import-conflicts ui)
+        resolutions (:conflict-resolutions ui)]
+    (when show?
+      [:div.modal-overlay {:on-click #(update-ui! {:show-import-dialog false
+                                                    :import-exercises nil
+                                                    :import-conflicts nil
+                                                    :conflict-resolutions nil})
+                           :role "dialog"
+                           :aria-modal "true"
+                           :aria-labelledby "import-dialog-title"}
+       [:div.modal-content.import-dialog {:on-click #(.stopPropagation %)}
+        [:h2#import-dialog-title "Import Conflicts Detected"]
+        
+        [:p "The following exercises exist in both your library and the import file with different weights. Choose which version to keep:"]
+        
+        [:div.conflict-list
+         (for [conflict conflicts]
+           (let [ex-name (:name conflict)
+                 existing-weight (:existing-weight conflict)
+                 imported-weight (:imported-weight conflict)
+                 current-choice (get resolutions ex-name :keep-existing)]
+             ^{:key ex-name}
+             [:div.conflict-item
+              [:div.conflict-header
+               [:strong ex-name]]
+              [:div.conflict-options
+               [:label.conflict-option
+                [:input {:type "radio"
+                         :name (str "conflict-" ex-name)
+                         :checked (= current-choice :keep-existing)
+                         :on-change #(update-ui! {:conflict-resolutions (assoc resolutions ex-name :keep-existing)})}]
+                [:span (str "Keep existing (weight: " existing-weight ")")]]
+               [:label.conflict-option
+                [:input {:type "radio"
+                         :name (str "conflict-" ex-name)
+                         :checked (= current-choice :use-imported)
+                         :on-change #(update-ui! {:conflict-resolutions (assoc resolutions ex-name :use-imported)})}]
+                [:span (str "Use imported (weight: " imported-weight ")")]]]]))]
+        
+        [:div.modal-actions
+         [:button {:on-click #(complete-import!)
+                   :aria-label "Complete import with selected resolutions"}
+          "Import"]
+         [:button {:on-click #(update-ui! {:show-import-dialog false
+                                           :import-exercises nil
+                                           :import-conflicts nil
+                                           :conflict-resolutions nil})
+                   :aria-label "Cancel import"}
+          "Cancel"]]]])))
+
 ;; ============================================================================
 ;; Root Component
 ;; ============================================================================
@@ -438,7 +570,8 @@
      [exercise-library-panel]]]
    
    ;; Modals
-   [add-exercise-dialog]])
+   [add-exercise-dialog]
+   [import-conflict-dialog]])
 
 ;; ============================================================================
 ;; Timer Callbacks
