@@ -26,7 +26,7 @@
                    :remaining-seconds 0
                    :session-state :not-started}
      :session-config {:equipment #{}}  ; Selected equipment types
-     :ui {:show-add-exercise false
+     :ui {:show-edit-exercise false
           :show-import-dialog false
           :import-conflicts nil
           :session-duration-minutes 5
@@ -76,7 +76,7 @@
               (timer/restart!)
               (update-timer-state! (timer/get-state)))
         
-        "Escape" (update-ui! {:show-add-exercise false
+        "Escape" (update-ui! {:show-edit-exercise false
                               :show-import-dialog false})
         
         nil))))
@@ -135,29 +135,43 @@
   [ui-updates]
   (swap! app-state update :ui merge ui-updates))
 
-(defn add-exercise!
-  "Add a new exercise to the library.
+(defn save-exercise!
+  "Save an exercise to the library (handles both new and existing exercises).
    
    Parameters:
-   - name: exercise name
+   - original-name: original exercise name (empty string for new exercises)
+   - new-name: new exercise name
    - difficulty: exercise difficulty (0.5 to 2.0)
    - equipment: vector of equipment type strings
+   - enabled: whether exercise is enabled
    
    Side effects:
-   - Adds exercise to library
+   - Adds or updates exercise in library
    - Updates app state
-   - Closes add exercise dialog"
-  [name difficulty equipment]
-  (let [result (library/add-exercise! {:name name :difficulty difficulty :equipment equipment})]
-    (if (contains? result :ok)
-      (do
-        (update-exercises! (library/load-library))
-        (update-ui! {:show-add-exercise false
-                     :add-exercise-name ""
-                     :add-exercise-difficulty 1.0
-                     :add-exercise-equipment ""
-                     :add-exercise-error nil}))
-      (update-ui! {:add-exercise-error (:error result)}))))
+   - Closes edit exercise dialog"
+  [original-name new-name difficulty equipment enabled]
+  (let [is-new? (empty? original-name)]
+    ;; Delete old exercise if name changed
+    (when (and (not is-new?) (not= original-name new-name))
+      (library/delete-exercise! original-name))
+    
+    (let [result (library/add-exercise! {:name new-name :difficulty difficulty :equipment equipment :enabled enabled})]
+      (if (contains? result :ok)
+        (do
+          (update-exercises! (library/load-library))
+          (update-ui! {:show-edit-exercise false
+                       :edit-exercise-name ""
+                       :edit-exercise-original-name ""
+                       :edit-exercise-difficulty 1.0
+                       :edit-exercise-equipment ""
+                       :edit-exercise-enabled true
+                       :edit-exercise-error nil}))
+        (do
+          ;; If update failed and we renamed, restore the original exercise
+          (when (and (not is-new?) (not= original-name new-name))
+            (library/add-exercise! {:name original-name :difficulty difficulty :equipment equipment :enabled enabled}))
+          (update-exercises! (library/load-library))
+          (update-ui! {:edit-exercise-error (:error result)}))))))
 
 (defn handle-import-file!
   "Handle file selection for import.
@@ -463,41 +477,27 @@
       (for [ex exercises]
         (let [enabled? (:enabled ex true)
               ex-name (:name ex)
-              ex-difficulty (:difficulty ex)]
+              ex-difficulty (:difficulty ex)
+              ex-equipment (:equipment ex ["None"])]
           ^{:key ex-name}
           [:div.exercise-item {:class (when-not enabled? "disabled")
                                :role "listitem"}
            [:div.exercise-info
             [:span.exercise-name ex-name]
-            [:span.exercise-difficulty (str "Difficulty: " ex-difficulty)]]
+            [:span.exercise-difficulty (str "Difficulty: " ex-difficulty)]
+            [:span.exercise-equipment (str "Equipment: " (clojure.string/join ", " ex-equipment))]]
            [:div.exercise-controls {:role "group" 
                                     :aria-label (str "Controls for " ex-name)}
-            [:button.difficulty-btn {:on-click #(do
-                                              (library/update-exercise-difficulty! ex-name (max 0.5 (- ex-difficulty 0.1)))
-                                              (update-exercises! (library/load-library)))
-                                 :aria-label (str "Decrease difficulty for " ex-name " (currently " ex-difficulty ")")
-                                 :title "Decrease difficulty"}
-             "−"]
-            [:button.difficulty-btn {:on-click #(do
-                                              (library/update-exercise-difficulty! ex-name (min 2.0 (+ ex-difficulty 0.1)))
-                                              (update-exercises! (library/load-library)))
-                                 :aria-label (str "Increase difficulty for " ex-name " (currently " ex-difficulty ")")
-                                 :title "Increase difficulty"}
-             "+"]
-            [:button.toggle-btn {:on-click #(do
-                                              (library/toggle-exercise-enabled! ex-name)
-                                              (update-exercises! (library/load-library)))
-                                 :class (if enabled? "enabled" "disabled")
-                                 :aria-label (str (if enabled? "Disable" "Enable") " " ex-name " in sessions")
-                                 :aria-pressed (if enabled? "true" "false")
-                                 :title (if enabled? "Exclude from sessions" "Include in sessions")}
-             (if enabled? "✓" "✗")]
-            [:button.delete-btn {:on-click #(when (js/confirm (str "Delete '" ex-name "'?"))
-                                              (library/delete-exercise! ex-name)
-                                              (update-exercises! (library/load-library)))
-                                 :aria-label (str "Delete " ex-name)
-                                 :title "Delete exercise"}
-             "🗑"]]]))]
+            [:button.edit-btn {:on-click #(update-ui! {:show-edit-exercise true
+                                                        :edit-exercise-name ex-name
+                                                        :edit-exercise-original-name ex-name
+                                                        :edit-exercise-difficulty ex-difficulty
+                                                        :edit-exercise-equipment (clojure.string/join ", " ex-equipment)
+                                                        :edit-exercise-enabled enabled?
+                                                        :edit-exercise-error nil})
+                               :aria-label (str "Edit " ex-name)
+                               :title "Edit exercise"}
+             "✏️"]]]))]
      [:div.library-actions
       [:button {:on-click #(library/export-and-download!)
                 :aria-label "Export exercise library to JSON file"}
@@ -512,10 +512,13 @@
        [:button {:on-click #(.click (-> % .-target .-previousSibling))
                  :aria-label "Import exercise library from JSON file"}
         "Import Library"]]
-      [:button {:on-click #(update-ui! {:show-add-exercise true
-                                        :add-exercise-name ""
-                                        :add-exercise-difficulty 1.0
-                                        :add-exercise-error nil})
+      [:button {:on-click #(update-ui! {:show-edit-exercise true
+                                        :edit-exercise-name ""
+                                        :edit-exercise-original-name ""
+                                        :edit-exercise-difficulty 1.0
+                                        :edit-exercise-equipment ""
+                                        :edit-exercise-enabled true
+                                        :edit-exercise-error nil})
                 :aria-label "Add new exercise to library"}
        "Add Exercise"]
       [:button {:on-click #(when (js/confirm "Reset all data and restore default exercises? This cannot be undone.")
@@ -525,78 +528,101 @@
                 :style {:background "#e74c3c"}}
        "Reset Data"]]]))
 
-;; Add Exercise Dialog Component
-(defn add-exercise-dialog []
+;; Exercise Dialog Component
+(defn exercise-dialog []
   (let [ui (:ui @app-state)
-        show? (:show-add-exercise ui)
-        name (:add-exercise-name ui "")
-        difficulty (:add-exercise-difficulty ui 1.0)
-        error (:add-exercise-error ui)
-        input-ref (atom nil)]
+        show? (:show-edit-exercise ui)]
+    
     (when show?
-      [:div.modal-overlay {:on-click #(update-ui! {:show-add-exercise false})
-                           :role "dialog"
-                           :aria-modal "true"
-                           :aria-labelledby "add-exercise-title"}
-       [:div.modal-content {:on-click #(.stopPropagation %)}
-        [:h2#add-exercise-title "Add New Exercise"]
+      (let [name (:edit-exercise-name ui "")
+            original-name (:edit-exercise-original-name ui "")
+            difficulty (:edit-exercise-difficulty ui 1.0)
+            equipment-str (:edit-exercise-equipment ui "")
+            enabled (:edit-exercise-enabled ui true)
+            error (:edit-exercise-error ui)
+            is-new? (empty? original-name)
+            
+            ;; Dialog configuration
+            title (if is-new? "Add New Exercise" "Edit Exercise")
+            button-text (if is-new? "Add Exercise" "Save Changes")
+            
+            ;; Close handler
+            close-fn #(update-ui! {:show-edit-exercise false})
+            
+            ;; Save handler
+            save-fn #(let [equipment-vec (if (empty? equipment-str)
+                                           ["None"]
+                                           (vec (map clojure.string/trim (clojure.string/split equipment-str #","))))]
+                      (save-exercise! original-name name difficulty equipment-vec enabled))]
         
-        (when error
-          [:div.error-message {:role "alert" :aria-live "assertive"} error])
-        
-        [:div.form-group
-         [:label {:for "exercise-name"} "Exercise Name:"]
-         [:input {:type "text"
-                  :id "exercise-name"
-                  :value name
-                  :placeholder "e.g., Push-ups"
-                  :aria-required "true"
-                  :ref (fn [el] 
-                         (reset! input-ref el)
-                         (when el (.focus el)))
-                  :on-change #(update-ui! {:add-exercise-name (-> % .-target .-value)})
-                  :on-key-press #(when (= (.-key %) "Enter")
-                                   (let [equipment-str (or (:add-exercise-equipment ui) "")
-                                         equipment-vec (if (empty? equipment-str)
-                                                         ["None"]
-                                                         (vec (map clojure.string/trim (clojure.string/split equipment-str #","))))]
-                                     (add-exercise! name difficulty equipment-vec)))}]]
-        
-        [:div.form-group
-         [:label {:for "exercise-difficulty"} 
-          (str "Difficulty: " difficulty " (0.5 = easier, 2.0 = harder)")]
-         [:input {:type "range"
-                  :id "exercise-difficulty"
-                  :min 0.5
-                  :max 2.0
-                  :step 0.1
-                  :value difficulty
-                  :aria-valuemin 0.5
-                  :aria-valuemax 2.0
-                  :aria-valuenow difficulty
-                  :aria-label "Exercise difficulty level"
-                  :on-change #(update-ui! {:add-exercise-difficulty (js/parseFloat (-> % .-target .-value))})}]]
-        
-        [:div.form-group
-         [:label {:for "exercise-equipment"} "Equipment (comma-separated, or leave empty for 'None'):"]
-         [:input {:type "text"
-                  :id "exercise-equipment"
-                  :value (or (:add-exercise-equipment ui) "")
-                  :placeholder "e.g., Dumbbells, A wall"
-                  :on-change #(update-ui! {:add-exercise-equipment (-> % .-target .-value)})}]]
-        
-        [:div.modal-actions
-         [:button {:on-click #(let [equipment-str (or (:add-exercise-equipment ui) "")
-                                    equipment-vec (if (empty? equipment-str)
-                                                    ["None"]
-                                                    (vec (map clojure.string/trim (clojure.string/split equipment-str #","))))]
-                                (add-exercise! name difficulty equipment-vec))
-                   :aria-label "Add exercise to library"}
-          "Add Exercise"]
-         [:button {:on-click #(update-ui! {:show-add-exercise false})
-                   :aria-label "Cancel and close dialog"}
-          "Cancel"]]]])))
-
+        [:div.modal-overlay {:on-click close-fn
+                             :role "dialog"
+                             :aria-modal "true"
+                             :aria-labelledby "exercise-dialog-title"}
+         [:div.modal-content {:on-click #(.stopPropagation %)}
+          [:h2#exercise-dialog-title title]
+          
+          (when error
+            [:div.error-message {:role "alert" :aria-live "assertive"} error])
+          
+          [:div.form-group
+           [:label {:for "exercise-name"} "Exercise Name:"]
+           [:input {:type "text"
+                    :id "exercise-name"
+                    :value name
+                    :placeholder "e.g., Push-ups"
+                    :aria-required "true"
+                    :ref (fn [el] (when el (.focus el)))
+                    :on-change #(update-ui! {:edit-exercise-name (-> % .-target .-value)})
+                    :on-key-press #(when (= (.-key %) "Enter") (save-fn))}]]
+          
+          [:div.form-group
+           [:label {:for "exercise-difficulty"} 
+            (str "Difficulty: " difficulty " (0.5 = easier, 2.0 = harder)")]
+           [:input {:type "range"
+                    :id "exercise-difficulty"
+                    :min 0.5
+                    :max 2.0
+                    :step 0.1
+                    :value difficulty
+                    :aria-valuemin 0.5
+                    :aria-valuemax 2.0
+                    :aria-valuenow difficulty
+                    :aria-label "Exercise difficulty level"
+                    :on-change #(update-ui! {:edit-exercise-difficulty (js/parseFloat (-> % .-target .-value))})}]]
+          
+          [:div.form-group
+           [:label {:for "exercise-equipment"} "Equipment (comma-separated, or leave empty for 'None'):"]
+           [:input {:type "text"
+                    :id "exercise-equipment"
+                    :value equipment-str
+                    :placeholder "e.g., Dumbbells, A wall"
+                    :on-change #(update-ui! {:edit-exercise-equipment (-> % .-target .-value)})}]]
+          
+          [:div.form-group
+           [:label
+            [:input {:type "checkbox"
+                     :checked enabled
+                     :on-change #(update-ui! {:edit-exercise-enabled (-> % .-target .-checked)})}]
+            " Include in sessions"]]
+          
+          [:div.modal-actions
+           [:button {:on-click save-fn
+                     :aria-label (if is-new? "Add exercise to library" "Save exercise changes")}
+            button-text]
+           [:button {:on-click close-fn
+                     :aria-label "Cancel and close dialog"}
+            "Cancel"]
+           ;; Delete button (only show when editing existing exercise)
+           (when-not is-new?
+             [:button.delete-btn {:on-click #(when (js/confirm (str "Delete '" original-name "'?"))
+                                               (library/delete-exercise! original-name)
+                                               (update-exercises! (library/load-library))
+                                               (update-ui! {:show-edit-exercise false}))
+                                  :aria-label (str "Delete " original-name)
+                                  :style {:background "#e74c3c"
+                                          :margin-left "auto"}}
+              "Delete"])]]]))))
 ;; Import Conflict Dialog Component
 (defn import-conflict-dialog []
   (let [ui (:ui @app-state)
@@ -676,7 +702,7 @@
      [exercise-library-panel]]]
    
    ;; Modals
-   [add-exercise-dialog]
+   [exercise-dialog]
    [import-conflict-dialog]])
 
 ;; ============================================================================

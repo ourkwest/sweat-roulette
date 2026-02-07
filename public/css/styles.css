@@ -339,9 +339,15 @@ button:disabled {
   color: #2c3e50;
 }
 
-.exercise-item .exercise-weight {
+.exercise-item .exercise-difficulty {
   font-size: 0.9rem;
   color: #7f8c8d;
+}
+
+.exercise-item .exercise-equipment {
+  font-size: 0.85rem;
+  color: #95a5a6;
+  font-style: italic;
 }
 
 .exercise-item .exercise-controls {
@@ -350,43 +356,16 @@ button:disabled {
   align-items: center;
 }
 
-.exercise-item .difficulty-btn {
-  min-width: 36px;
-  min-height: 36px;
-  padding: 5px 10px;
-  font-size: 18px;
-  font-weight: bold;
-  background: #3498db;
-  border-radius: 4px;
-}
-
-.exercise-item .difficulty-btn:hover:not(:disabled) {
-  background: #2980b9;
-  transform: none;
-}
-
-.exercise-item .toggle-btn {
+.exercise-item .edit-btn {
   min-width: 36px;
   min-height: 36px;
   padding: 5px 10px;
   font-size: 16px;
-  font-weight: bold;
+  background: #3498db;
 }
 
-.exercise-item .toggle-btn.enabled {
-  background: #2ecc71;
-}
-
-.exercise-item .toggle-btn.enabled:hover {
-  background: #27ae60;
-}
-
-.exercise-item .toggle-btn.disabled {
-  background: #e74c3c;
-}
-
-.exercise-item .toggle-btn.disabled:hover {
-  background: #c0392b;
+.exercise-item .edit-btn:hover {
+  background: #2980b9;
 }
 
 .exercise-item .delete-btn {
