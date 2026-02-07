@@ -39,17 +39,20 @@ header h1 {
 
 main {
   padding: 20px;
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 20px;
 }
 
 /* Setup view - two column layout */
 .setup-view {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
+  display: flex;
   gap: 20px;
-  width: 100%;
+}
+
+.setup-view .session-area {
+  flex: 2;
+}
+
+.setup-view .library-area {
+  flex: 1;
 }
 
 /* Session area - full width when active */

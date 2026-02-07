@@ -248,14 +248,22 @@
   "Get the current exercise from the session.
    
    Returns:
-   - Current exercise map or nil if no session active"
+   - Current exercise map or nil if no session active
+   - Merges current difficulty from library to reflect real-time updates"
   []
   (when-let [session (:current-session @app-state)]
     (let [timer-state (:timer-state @app-state)
           index (:current-exercise-index timer-state)
           exercises (:exercises session)]
       (when (< index (count exercises))
-        (nth exercises index)))))
+        (let [session-ex (nth exercises index)
+              ex-name (get-in session-ex [:exercise :name])
+              ;; Get current difficulty from library
+              library-exercises (:exercises @app-state)
+              library-ex (first (filter #(= (:name %) ex-name) library-exercises))
+              current-difficulty (if library-ex (:difficulty library-ex) (get-in session-ex [:exercise :difficulty]))]
+          ;; Merge current difficulty into session exercise
+          (assoc-in session-ex [:exercise :difficulty] current-difficulty))))))
 
 ;; ============================================================================
 ;; Initialization
