@@ -5,7 +5,8 @@
             [exercise-timer.session :as session]
             [exercise-timer.timer :as timer]
             [exercise-timer.format :as format]
-            [exercise-timer.speech :as speech]))
+            [exercise-timer.speech :as speech]
+            [exercise-timer.wakelock :as wakelock]))
 
 ;; ============================================================================
 ;; Forward Declarations
@@ -342,7 +343,9 @@
                               (timer/initialize-session! session-plan)
                               (update-timer-state! (timer/get-state))
                               ;; Reset speech announcement tracking for new session
-                              (speech/reset-announcement-tracking!)))
+                              (speech/reset-announcement-tracking!)
+                              ;; Request wake lock to keep screen on during workout
+                              (wakelock/request-wake-lock!)))
                 :disabled (or session-active? 
                              (empty? (:exercises @app-state))
                              (empty? (filter #(:enabled % true) (:exercises @app-state))))}
@@ -474,7 +477,8 @@
        ;; Back/Cancel button to return to setup view
        [:button {:on-click #(do (timer/pause!)
                                 (update-current-session! nil)
-                                (update-timer-state! (timer/make-timer-state)))
+                                (update-timer-state! (timer/make-timer-state))
+                                (wakelock/release-wake-lock!))
                  :aria-label "Cancel session and return to setup"}
         "Cancel Session"]])))
 
@@ -483,12 +487,15 @@
   (let [timer-state (:timer-state @app-state)
         state-keyword (:session-state timer-state)]
     (when (= state-keyword :completed)
-      [:div.completion-screen
-       [:h2 "🎉 Session Complete!"]
-       [:p "Great job! You've completed your workout."]
-       [:button {:on-click #(do (update-current-session! nil)
-                                (update-timer-state! (timer/make-timer-state)))}
-        "Start New Session"]])))
+      (do
+        ;; Release wake lock when session completes
+        (wakelock/release-wake-lock!)
+        [:div.completion-screen
+         [:h2 "🎉 Session Complete!"]
+         [:p "Great job! You've completed your workout."]
+         [:button {:on-click #(do (update-current-session! nil)
+                                  (update-timer-state! (timer/make-timer-state)))}
+          "Start New Session"]]))))
 
 ;; Exercise Library Panel Component
 (defn exercise-library-panel []
