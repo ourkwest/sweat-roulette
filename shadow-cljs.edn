@@ -11,6 +11,7 @@
         :output-dir ".dev-build/js"
         :asset-path "/js"
         :modules {:main {:init-fn exercise-timer.core/init!}}
+        :build-hooks [(build-hooks/copy-static-assets)]
         :devtools {:after-load exercise-timer.core/reload!
                    :preloads [shadow.cljs.devtools.client.browser]}}
   
