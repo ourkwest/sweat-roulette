@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "Web-based exercise timer application with weighted exercise sequencing",
   "scripts": {
-    "dev": "shadow-cljs watch app",
-    "build": "shadow-cljs release app",
+    "dev": "shadow-cljs watch dev",
+    "build": "shadow-cljs release prod",
     "test": "shadow-cljs compile test",
     "test-watch": "shadow-cljs watch test"
   },

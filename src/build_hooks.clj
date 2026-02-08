@@ -16,6 +16,7 @@
   (println "Copying static assets from src/public/ to .dev-build/...")
   (try
     (copy-file "src/public/index.html" ".dev-build/index.html")
+    (copy-file "src/public/favicon.svg" ".dev-build/favicon.svg")
     (copy-file "src/public/css/styles.css" ".dev-build/css/styles.css")
     (println "✓ Static assets copied successfully")
     (catch Exception e

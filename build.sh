@@ -17,6 +17,7 @@ rm -rf docs/*
 # Copy static assets from source
 echo "Copying static assets from src/public/..."
 cp src/public/index.html docs/
+cp src/public/favicon.svg docs/
 cp -r src/public/css docs/
 
 # Build production JavaScript with advanced optimizations and version info
