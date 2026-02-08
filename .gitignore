@@ -3,10 +3,8 @@
 node_modules/
 out/
 
-# Generated files (development)
-public/js/
-public/index.html
-public/css/
+# Generated files (development build - DO NOT EDIT)
+.dev-build/
 
 # ClojureScript
 .cpcache/

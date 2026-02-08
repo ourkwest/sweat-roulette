@@ -3,12 +3,12 @@
  :dependencies [[reagent "1.2.0"]
                 [org.clojure/test.check "1.1.1"]]
  
- :dev-http {8020 {:root "public"
+ :dev-http {8020 {:root ".dev-build"
                   :handler shadow.http.push-state/handle}}
  
  :builds
  {:app {:target :browser
-        :output-dir "public/js"
+        :output-dir ".dev-build/js"
         :asset-path "/js"
         :modules {:main {:init-fn exercise-timer.core/init!}}
         :devtools {:after-load exercise-timer.core/reload!

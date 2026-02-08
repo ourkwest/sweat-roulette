@@ -46,7 +46,7 @@ npx shadow-cljs compile test
 
 # Manual way:
 npx shadow-cljs release app
-cp -r public/* docs/
+cp -r src/public/* docs/
 
 # The app is now ready in the docs/ directory (312KB optimized)
 ```
@@ -100,14 +100,14 @@ Then open http://localhost:8000 in your browser.
 │   ├── css/styles.css     # Generated from src/public/
 │   ├── js/main.js         # Compiled JavaScript (313KB optimized)
 │   └── .nojekyll          # GitHub Pages config
-├── public/                # Development build (generated, gitignored)
+├── .dev-build/            # Development build (generated, gitignored - DO NOT EDIT)
 ├── build.sh               # Build script for GitHub Pages
 └── shadow-cljs.edn        # Build configuration
 ```
 
 **Key Points:**
 - **Source files** live in `src/` (both ClojureScript and HTML/CSS)
-- **Development build** goes to `public/` (gitignored, for local dev server)
+- **Development build** goes to `.dev-build/` (gitignored, generated - DO NOT EDIT)
 - **Production build** goes to `docs/` (committed, for GitHub Pages)
 
 ## 🛠 Technology Stack
