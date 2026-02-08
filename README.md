@@ -30,7 +30,7 @@ A web-based exercise timer application built with ClojureScript and Reagent. Thi
 npm install
 
 # Start development server with hot reload
-npx shadow-cljs watch app
+npx shadow-cljs watch dev
 
 # Run tests
 npx shadow-cljs compile test
@@ -45,7 +45,7 @@ npx shadow-cljs compile test
 ./build.sh
 
 # Manual way:
-npx shadow-cljs release app
+npx shadow-cljs release prod
 cp -r src/public/* docs/
 
 # The app is now ready in the docs/ directory (312KB optimized)

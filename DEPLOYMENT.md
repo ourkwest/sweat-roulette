@@ -23,7 +23,7 @@ This script will:
 Alternatively, build manually:
 
 ```bash
-npx shadow-cljs release app
+npx shadow-cljs release prod
 ```
 
 This creates an optimized build in the `public/` directory:
@@ -54,10 +54,10 @@ git push
 **Option B: Manual deployment**
 ```bash
 # Build the app
-npx shadow-cljs release app
+npx shadow-cljs release prod
 
 # Copy to docs directory
-cp -r public/* docs/
+cp -r src/public/* docs/
 
 # Push to repository
 git add docs/
@@ -74,15 +74,15 @@ Then enable GitHub Pages in your repository settings:
 ### 2. Netlify
 
 **Option A: Drag and Drop**
-1. Build: `npx shadow-cljs release app`
-2. Drag the `public/` folder to Netlify's deploy interface
+1. Build: `npx shadow-cljs release prod`
+2. Drag the `docs/` folder to Netlify's deploy interface
 
 **Option B: Continuous Deployment**
 1. Create `netlify.toml`:
 ```toml
 [build]
-  command = "npm install && npx shadow-cljs release app"
-  publish = "public"
+  command = "npm install && npx shadow-cljs release prod && cp -r src/public/* docs/"
+  publish = "docs"
 ```
 2. Connect your repository to Netlify
 
@@ -91,7 +91,8 @@ Then enable GitHub Pages in your repository settings:
 **Option A: CLI**
 ```bash
 npm install -g vercel
-npx shadow-cljs release app
+npx shadow-cljs release prod
+cp -r src/public/* docs/
 vercel --prod
 ```
 
@@ -99,8 +100,8 @@ vercel --prod
 1. Create `vercel.json`:
 ```json
 {
-  "buildCommand": "npm install && npx shadow-cljs release app",
-  "outputDirectory": "public"
+  "buildCommand": "npm install && npx shadow-cljs release prod && cp -r src/public/* docs/",
+  "outputDirectory": "docs"
 }
 ```
 2. Connect your repository to Vercel
@@ -130,10 +131,10 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
-RUN npx shadow-cljs release app
+RUN npx shadow-cljs release prod && cp -r src/public/* docs/
 
 FROM nginx:alpine
-COPY --from=builder /app/public /usr/share/nginx/html
+COPY --from=builder /app/docs /usr/share/nginx/html
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 ```
@@ -188,8 +189,8 @@ Since this is a static app, monitoring is minimal:
 To deploy updates:
 1. Make changes to source code
 2. Run tests: `npx shadow-cljs compile test`
-3. Build: `npx shadow-cljs release app`
-4. Deploy the `public/` directory
+3. Build: `npx shadow-cljs release prod` or `./build.sh`
+4. Deploy the `docs/` directory
 
 ## Troubleshooting
 

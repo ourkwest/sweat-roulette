@@ -7,7 +7,7 @@
                   :handler shadow.http.push-state/handle}}
  
  :builds
- {:app {:target :browser
+ {:dev {:target :browser
         :output-dir ".dev-build/js"
         :asset-path "/js"
         :modules {:main {:init-fn exercise-timer.core/init!}}
@@ -15,14 +15,14 @@
         :devtools {:after-load exercise-timer.core/reload!
                    :preloads [shadow.cljs.devtools.client.browser]}}
   
-  :release {:target :browser
-            :output-dir "docs/js"
-            :asset-path "/js"
-            :modules {:main {:init-fn exercise-timer.core/init!}}
-            :compiler-options {:optimizations :advanced
-                               :infer-externs :auto
-                               :output-feature-set :es6}
-            :build-options {:manifest-name "manifest.edn"}}
+  :prod {:target :browser
+         :output-dir "docs/js"
+         :asset-path "/js"
+         :modules {:main {:init-fn exercise-timer.core/init!}}
+         :compiler-options {:optimizations :advanced
+                            :infer-externs :auto
+                            :output-feature-set :es6}
+         :build-options {:manifest-name "manifest.edn"}}
   
   :test {:target :node-test
          :output-to "out/test.js"

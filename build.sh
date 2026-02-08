@@ -14,7 +14,7 @@ cp -r src/public/css docs/
 
 # Build production JavaScript with advanced optimizations
 echo "Compiling ClojureScript with advanced optimizations..."
-npx shadow-cljs release release
+npx shadow-cljs release prod
 
 # Add .nojekyll file (prevents GitHub Pages from ignoring files starting with _)
 touch docs/.nojekyll
