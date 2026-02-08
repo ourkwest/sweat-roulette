@@ -670,3 +670,37 @@ button:disabled {
   color: #95a5a6;
   font-family: 'Courier New', monospace;
 }
+
+/* Disclaimer Dialog */
+.disclaimer-dialog {
+  max-width: 600px;
+}
+
+.disclaimer-text {
+  margin: 20px 0;
+  line-height: 1.6;
+}
+
+.disclaimer-text ul {
+  margin: 15px 0;
+  padding-left: 25px;
+}
+
+.disclaimer-text li {
+  margin: 10px 0;
+}
+
+.disclaimer-text p {
+  margin: 15px 0;
+}
+
+.disclaimer-dialog .modal-actions {
+  flex-direction: column;
+  gap: 10px;
+}
+
+.disclaimer-dialog .modal-actions button {
+  width: 100%;
+  padding: 12px;
+  font-size: 1rem;
+}
