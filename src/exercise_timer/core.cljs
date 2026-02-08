@@ -30,6 +30,7 @@
      :session-config {:equipment #{}}  ; Selected equipment types
      :ui {:show-edit-exercise false
           :show-import-dialog false
+          :show-disclaimer false
           :import-conflicts nil
           :session-duration-minutes 5
           :speech-enabled true}}))     ; Speech announcements enabled by default
@@ -333,20 +334,26 @@
      
      [:div.button-row
       [:button {:on-click (fn []
-                            (let [all-exercises (:exercises @app-state)
-                                  enabled-exercises (vec (filter #(:enabled % true) all-exercises))
-                                  session-config (:session-config @app-state)
-                                  duration (:session-duration-minutes ui)
-                                  equipment (:equipment session-config)
-                                  config (session/make-session-config duration equipment)
-                                  session-plan (session/generate-session config enabled-exercises)]
-                              (update-current-session! session-plan)
-                              (timer/initialize-session! session-plan)
-                              (update-timer-state! (timer/get-state))
-                              ;; Reset speech announcement tracking for new session
-                              (speech/reset-announcement-tracking!)
-                              ;; Request wake lock to keep screen on during workout
-                              (wakelock/request-wake-lock!)))
+                            ;; Check if disclaimer has been accepted
+                            (let [disclaimer-accepted? (= "true" (.getItem js/localStorage "disclaimer-accepted"))]
+                              (if disclaimer-accepted?
+                                ;; Start session immediately
+                                (let [all-exercises (:exercises @app-state)
+                                      enabled-exercises (vec (filter #(:enabled % true) all-exercises))
+                                      session-config (:session-config @app-state)
+                                      duration (:session-duration-minutes ui)
+                                      equipment (:equipment session-config)
+                                      config (session/make-session-config duration equipment)
+                                      session-plan (session/generate-session config enabled-exercises)]
+                                  (update-current-session! session-plan)
+                                  (timer/initialize-session! session-plan)
+                                  (update-timer-state! (timer/get-state))
+                                  ;; Reset speech announcement tracking for new session
+                                  (speech/reset-announcement-tracking!)
+                                  ;; Request wake lock to keep screen on during workout
+                                  (wakelock/request-wake-lock!))
+                                ;; Show disclaimer first
+                                (update-ui! {:show-disclaimer true}))))
                 :disabled (or session-active? 
                              (empty? (:exercises @app-state))
                              (empty? (filter #(:enabled % true) (:exercises @app-state))))}
@@ -769,6 +776,52 @@
                    :aria-label "Cancel import"}
           "Cancel"]]]])))
 
+;; Disclaimer Dialog Component
+(defn disclaimer-dialog []
+  (let [ui (:ui @app-state)
+        show? (:show-disclaimer ui)]
+    (when show?
+      [:div.modal-overlay {:role "dialog"
+                           :aria-modal "true"
+                           :aria-labelledby "disclaimer-dialog-title"}
+       [:div.modal-content.disclaimer-dialog {:on-click #(.stopPropagation %)}
+        [:h2#disclaimer-dialog-title "⚠️ Disclaimer"]
+        
+        [:div.disclaimer-text
+         [:p "By using this exercise timer application, you acknowledge and agree that:"]
+         [:ul
+          [:li "Exercise involves physical exertion and carries inherent risks of injury."]
+          [:li "You should consult with a healthcare professional before beginning any exercise program."]
+          [:li "You are responsible for your own safety and should stop immediately if you experience pain, dizziness, or discomfort."]
+          [:li "The creator of this application assumes no liability for any injuries or damages resulting from your use of this application."]]
+         [:p [:strong "Use this application at your own risk."]]]
+        
+        [:div.modal-actions
+         [:button {:on-click (fn []
+                                ;; Store acceptance in localStorage
+                                (.setItem js/localStorage "disclaimer-accepted" "true")
+                                ;; Close disclaimer
+                                (update-ui! {:show-disclaimer false})
+                                ;; Start the session
+                                (let [all-exercises (:exercises @app-state)
+                                      enabled-exercises (vec (filter #(:enabled % true) all-exercises))
+                                      session-config (:session-config @app-state)
+                                      duration (get-in @app-state [:ui :session-duration-minutes])
+                                      equipment (:equipment session-config)
+                                      config (session/make-session-config duration equipment)
+                                      session-plan (session/generate-session config enabled-exercises)]
+                                  (update-current-session! session-plan)
+                                  (timer/initialize-session! session-plan)
+                                  (update-timer-state! (timer/get-state))
+                                  (speech/reset-announcement-tracking!)
+                                  (wakelock/request-wake-lock!)))
+                   :aria-label "Accept disclaimer and start session"
+                   :style {:background "#27ae60"}}
+          "I Understand - Start Workout"]
+         [:button {:on-click #(update-ui! {:show-disclaimer false})
+                   :aria-label "Cancel and close disclaimer"}
+          "Cancel"]]]])))
+
 ;; ============================================================================
 ;; Root Component
 ;; ============================================================================
@@ -811,7 +864,8 @@
      
      ;; Modals
      [exercise-dialog]
-     [import-conflict-dialog]]))
+     [import-conflict-dialog]
+     [disclaimer-dialog]]))
 
 ;; ============================================================================
 ;; Timer Callbacks
