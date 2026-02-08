@@ -6,7 +6,8 @@
             [exercise-timer.timer :as timer]
             [exercise-timer.format :as format]
             [exercise-timer.speech :as speech]
-            [exercise-timer.wakelock :as wakelock]))
+            [exercise-timer.wakelock :as wakelock]
+            [exercise-timer.version :as version]))
 
 ;; ============================================================================
 ;; Forward Declarations
@@ -803,6 +804,10 @@
           [configuration-panel]]
          [:div.library-area
           [exercise-library-panel]]])]
+     
+     ;; Footer with version
+     [:footer.app-footer
+      [:div.version (str "Version: " (version/get-version-string))]]
      
      ;; Modals
      [exercise-dialog]

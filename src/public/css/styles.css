@@ -656,3 +656,17 @@ button:disabled {
   border-radius: 4px;
   margin-bottom: 15px;
 }
+
+/* Footer */
+.app-footer {
+  padding: 10px 20px;
+  text-align: center;
+  background: #f5f5f5;
+  border-top: 1px solid #e0e0e0;
+}
+
+.app-footer .version {
+  font-size: 0.75rem;
+  color: #95a5a6;
+  font-family: 'Courier New', monospace;
+}
