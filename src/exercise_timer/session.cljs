@@ -11,18 +11,23 @@
    Parameters:
    - duration-minutes: positive integer representing total session duration in minutes
    - equipment (optional): set of equipment type strings that are available
+   - excluded-tags (optional): set of tag strings to exclude from session
    
    Returns:
-   - {:duration-minutes int :equipment #{string}}
+   - {:duration-minutes int :equipment #{string} :excluded-tags #{string}}
    
    Validates: Requirements 1.1, 1.2, 1.3, 13.2, 13.4"
   ([duration-minutes]
-   (make-session-config duration-minutes #{}))
+   (make-session-config duration-minutes #{} #{}))
   ([duration-minutes equipment]
+   (make-session-config duration-minutes equipment #{}))
+  ([duration-minutes equipment excluded-tags]
    {:pre [(pos-int? duration-minutes)
-          (set? equipment)]}
+          (set? equipment)
+          (set? excluded-tags)]}
    {:duration-minutes duration-minutes
-    :equipment equipment}))
+    :equipment equipment
+    :excluded-tags excluded-tags}))
 
 (defn config->seconds
   "Convert session configuration duration from minutes to seconds.
@@ -541,6 +546,59 @@
                    (:name (last selected)))))))))
 
 ;; ============================================================================
+;; Tag Variety Distribution
+;; ============================================================================
+
+(defn- muscle-tags
+  "Get the set of muscle-related tags from an exercise, excluding type/impact tags.
+   
+   Muscle tags are tags that represent body parts or muscle groups.
+   Type tags (cardio, strength, etc.) and impact tags are excluded."
+  [exercise]
+  (let [all-tags (set (:tags (:exercise exercise) []))
+        non-muscle-tags #{"cardio" "strength" "flexibility" "balance" "plyometric" 
+                          "low-impact" "high-impact" "full-body"}]
+    (clojure.set/difference all-tags non-muscle-tags)))
+
+(defn- tag-overlap-score
+  "Calculate how many muscle tags two exercises share.
+   Higher score = more overlap = less variety."
+  [ex1 ex2]
+  (let [tags1 (muscle-tags ex1)
+        tags2 (muscle-tags ex2)]
+    (count (clojure.set/intersection tags1 tags2))))
+
+(defn distribute-for-tag-variety
+  "Rearrange exercises to maximize tag variety (avoid consecutive exercises with same muscle groups).
+   
+   Uses a greedy algorithm to select the next exercise that has minimal tag overlap
+   with the previous exercise. This ensures variety in muscle groups throughout the session.
+   
+   Parameters:
+   - exercises: vector of exercise maps with :exercise {:tags [...]} structure
+   
+   Returns:
+   - vector of exercises rearranged for tag variety
+   
+   Note: This is applied BEFORE progressive difficulty arrangement, so difficulty
+   distribution is preserved."
+  [exercises]
+  (if (< (count exercises) 2)
+    exercises
+    (loop [remaining (vec (rest exercises))
+           result [(first exercises)]]
+      (if (empty? remaining)
+        result
+        (let [last-ex (last result)
+              ;; Find exercise with minimal tag overlap with last exercise
+              next-ex (apply min-key
+                            #(tag-overlap-score last-ex %)
+                            remaining)
+              ;; Remove selected exercise from remaining
+              new-remaining (filterv #(not= % next-ex) remaining)]
+          (recur new-remaining (conj result next-ex)))))))
+
+;; ============================================================================
 ;; Session Generation
 ;; ============================================================================
 
@@ -617,15 +675,26 @@
                                           required-equipment)))
                               exercises))
         
+        ;; Step 2.5: Filter exercises by excluded tags
+        excluded-tags (get config :excluded-tags #{})
+        tag-filtered-exercises (if (empty? excluded-tags)
+                                 filtered-exercises
+                                 (filterv
+                                  (fn [exercise]
+                                    (let [exercise-tags (set (:tags exercise []))]
+                                      ;; Exercise is included if it has NO tags in the excluded set
+                                      (empty? (clojure.set/intersection exercise-tags excluded-tags))))
+                                  filtered-exercises))
+        
         ;; Step 3: Determine number of exercises to select
         ;; Aim for approximately 40 seconds per exercise for better workout pacing
         ;; Use at least 3 exercises for variety, but cap at available exercises
         target-avg-duration 40
         ideal-num-exercises (max 3 (int (/ total-duration-seconds target-avg-duration)))
-        num-exercises (min ideal-num-exercises (count filtered-exercises))
+        num-exercises (min ideal-num-exercises (count tag-filtered-exercises))
         
         ;; Step 4: Select exercises using round-robin without repetition
-        selected-exercises (select-exercises-round-robin filtered-exercises num-exercises)
+        selected-exercises (select-exercises-round-robin tag-filtered-exercises num-exercises)
         
         ;; Step 5: Distribute time across exercises based on difficulties
         exercises-with-durations (distribute-time-by-difficulty selected-exercises total-duration-seconds)
@@ -666,12 +735,15 @@
         ;; This enforces the maximum duration constraint of 120 seconds
         split-exercises (split-long-exercises constrained-exercises)
         
-        ;; Step 7: Calculate final total duration (should equal original due to time conservation in splitting)
-        final-total (reduce + (map :duration-seconds split-exercises))
+        ;; Step 7: Distribute exercises for tag variety (avoid consecutive same muscle groups)
+        variety-distributed (distribute-for-tag-variety split-exercises)
         
-        ;; Step 8: Create session plan (before arrangement)
-        pre-arranged-plan (make-session-plan split-exercises final-total)
+        ;; Step 8: Calculate final total duration (should equal original due to time conservation in splitting)
+        final-total (reduce + (map :duration-seconds variety-distributed))
         
-        ;; Step 9: Arrange exercises for progressive difficulty (easier at start/end)
+        ;; Step 9: Create session plan (before progressive difficulty arrangement)
+        pre-arranged-plan (make-session-plan variety-distributed final-total)
+        
+        ;; Step 10: Arrange exercises for progressive difficulty (easier at start/end)
         session-plan (arrange-progressive-difficulty pre-arranged-plan)]
     session-plan))

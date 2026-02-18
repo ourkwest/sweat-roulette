@@ -158,21 +158,28 @@
   [equipment]
   (vector? equipment))
 
+(defn valid-tags?
+  "Check if tags is a valid vector of strings."
+  [tags]
+  (and (vector? tags)
+       (every? string? tags)))
+
 (defn make-exercise
-  "Create an exercise with name, difficulty, and equipment.
+  "Create an exercise with name, difficulty, equipment, and tags.
    Returns exercise map if valid, or error map if invalid.
    
    Parameters:
    - name: Non-empty string, must be unique in library
    - difficulty: Number between 0.5 and 2.0 inclusive
-   - equipment: Vector of equipment type strings (e.g., [\"None\"], [\"A wall\"])
+   - equipment: Vector of equipment type strings (e.g., [], [\"A wall\"])
+   - tags: Vector of tag strings (e.g., [\"strength\" \"chest\" \"arms\"])
    
    Returns:
-   - {:exercise {:name \"...\" :difficulty N :equipment [...]}} on success
+   - {:exercise {:name \"...\" :difficulty N :equipment [...] :tags [...]}} on success
    - {:error \"message\"} on validation failure
    
    Validates: Requirements 6.2, 6.3, 6.4, 7.2, 7.3, 7.4"
-  [name difficulty equipment]
+  [name difficulty equipment tags]
   (cond
     (not (valid-name? name))
     {:error "Exercise name must be a non-empty string"}
@@ -183,10 +190,14 @@
     (not (valid-equipment? equipment))
     {:error "Exercise equipment must be a vector"}
     
+    (not (valid-tags? tags))
+    {:error "Exercise tags must be a vector of strings"}
+    
     :else
     {:exercise {:name (clojure.string/trim name)
                 :difficulty difficulty
-                :equipment equipment}}))
+                :equipment equipment
+                :tags tags}}))
 
 ;; ============================================================================
 ;; Library State Management
@@ -219,26 +230,26 @@
 (def ^:private default-exercises
   "Default set of exercises to initialize the library.
    Validates: Requirements 6.1, 6.6"
-  [{:name "Push-ups" :difficulty 1.2 :equipment []}
-   {:name "Squats" :difficulty 1.0 :equipment []}
-   {:name "Plank" :difficulty 1.5 :equipment []}
-   {:name "Jumping Jacks" :difficulty 0.8 :equipment []}
-   {:name "Lunges" :difficulty 1.0 :equipment []}
-   {:name "Mountain Climbers" :difficulty 1.3 :equipment []}
-   {:name "Burpees" :difficulty 1.8 :equipment []}
-   {:name "High Knees" :difficulty 0.9 :equipment []}
-   {:name "Sit-ups" :difficulty 1.0 :equipment []}
-   {:name "Wall Sit" :difficulty 1.4 :equipment ["A wall"]}
-   {:name "Russian Twists" :difficulty 1.1 :equipment []}
-   {:name "Kneel to Stand" :difficulty 1.6 :equipment []}
-   {:name "Air Punches" :difficulty 0.7 :equipment []}
-   {:name "Plank Shoulder Taps" :difficulty 1.4 :equipment []}
-   {:name "Dumbbell Bicep Curls" :difficulty 1.2 :equipment ["Dumbbells"]}
-   {:name "Dumbbell Shoulder Press" :difficulty 1.4 :equipment ["Dumbbells"]}
-   {:name "Dumbbell Rows" :difficulty 1.3 :equipment ["Dumbbells", "A bench"]}
-   {:name "Dumbbell Goblet Squats" :difficulty 1.3 :equipment ["Dumbbells"]}
-   {:name "Dumbbell Chest Press" :difficulty 1.5 :equipment ["Dumbbells", "A bench"]}
-   {:name "Dumbbell Lateral Raises" :difficulty 1.1 :equipment ["Dumbbells"]}])
+  [{:name "Push-ups" :difficulty 1.2 :equipment [] :tags ["strength" "chest" "triceps" "shoulders" "low-impact"]}
+   {:name "Squats" :difficulty 1.0 :equipment [] :tags ["strength" "quads" "glutes" "low-impact"]}
+   {:name "Plank" :difficulty 1.5 :equipment [] :tags ["strength" "core" "abs" "shoulders" "low-impact"]}
+   {:name "Jumping Jacks" :difficulty 0.8 :equipment [] :tags ["cardio" "full-body" "high-impact"]}
+   {:name "Lunges" :difficulty 1.0 :equipment [] :tags ["strength" "quads" "glutes" "hamstrings" "balance" "low-impact"]}
+   {:name "Mountain Climbers" :difficulty 1.3 :equipment [] :tags ["cardio" "strength" "core" "shoulders" "high-impact"]}
+   {:name "Burpees" :difficulty 1.8 :equipment [] :tags ["cardio" "strength" "plyometric" "full-body" "high-impact"]}
+   {:name "High Knees" :difficulty 0.9 :equipment [] :tags ["cardio" "quads" "hip-flexors" "high-impact"]}
+   {:name "Sit-ups" :difficulty 1.0 :equipment [] :tags ["strength" "abs" "hip-flexors" "low-impact"]}
+   {:name "Wall Sit" :difficulty 1.4 :equipment ["A wall"] :tags ["strength" "quads" "glutes" "low-impact"]}
+   {:name "Russian Twists" :difficulty 1.1 :equipment [] :tags ["strength" "abs" "obliques" "low-impact"]}
+   {:name "Kneel to Stand" :difficulty 1.6 :equipment [] :tags ["strength" "quads" "glutes" "balance" "low-impact"]}
+   {:name "Air Punches" :difficulty 0.7 :equipment [] :tags ["cardio" "shoulders" "arms" "low-impact"]}
+   {:name "Plank Shoulder Taps" :difficulty 1.4 :equipment [] :tags ["strength" "core" "abs" "shoulders" "balance" "low-impact"]}
+   {:name "Dumbbell Bicep Curls" :difficulty 1.2 :equipment ["Dumbbells"] :tags ["strength" "biceps" "forearms" "low-impact"]}
+   {:name "Dumbbell Shoulder Press" :difficulty 1.4 :equipment ["Dumbbells"] :tags ["strength" "shoulders" "triceps" "low-impact"]}
+   {:name "Dumbbell Rows" :difficulty 1.3 :equipment ["Dumbbells", "A bench"] :tags ["strength" "back" "biceps" "low-impact"]}
+   {:name "Dumbbell Goblet Squats" :difficulty 1.3 :equipment ["Dumbbells"] :tags ["strength" "quads" "glutes" "low-impact"]}
+   {:name "Dumbbell Chest Press" :difficulty 1.5 :equipment ["Dumbbells", "A bench"] :tags ["strength" "chest" "triceps" "shoulders" "low-impact"]}
+   {:name "Dumbbell Lateral Raises" :difficulty 1.1 :equipment ["Dumbbells"] :tags ["strength" "shoulders" "low-impact"]}])
 
 (defn initialize-defaults!
   "Initialize the exercise library with default exercises.
@@ -353,7 +364,7 @@
   "Add a new exercise to the library with validation.
    
    Parameters:
-   - exercise: Exercise map with :name, :difficulty, and optionally :equipment and :enabled keys
+   - exercise: Exercise map with :name, :difficulty, :equipment, :tags, and optionally :enabled keys
    
    Returns:
    - {:ok exercise} on success
@@ -365,9 +376,11 @@
    
    Validates: Requirements 6.4, 7.1, 7.2, 7.3, 7.4, 7.5"
   [exercise]
-  (let [{:keys [name difficulty equipment enabled]} exercise
+  (let [{:keys [name difficulty equipment enabled tags]} exercise
         ;; Default equipment to empty vector if not provided
         equipment (or equipment [])
+        ;; Default tags to empty vector if not provided
+        tags (or tags [])
         ;; Default enabled to true if not provided
         enabled (if (nil? enabled) true enabled)]
     (cond
@@ -383,6 +396,10 @@
       (not (valid-equipment? equipment))
       {:error "Exercise equipment must be a vector"}
       
+      ;; Validate tags
+      (not (valid-tags? tags))
+      {:error "Exercise tags must be a vector of strings"}
+      
       ;; Check for duplicate name
       (exercise-exists? name)
       {:error (str "Exercise with name '" (clojure.string/trim name) "' already exists")}
@@ -392,6 +409,7 @@
       (let [trimmed-exercise {:name (clojure.string/trim name)
                               :difficulty difficulty
                               :equipment equipment
+                              :tags tags
                               :enabled enabled}
             updated-library (conj @library-state trimmed-exercise)
             save-result (save-library! updated-library)]
@@ -784,6 +802,51 @@
                  (or (= eq "None")
                      (contains? equipment-set eq)))
                required-equipment)))
+   exercises))
+
+;; ============================================================================
+;; Tag Filtering
+;; ============================================================================
+
+(defn get-all-tags
+  "Get all unique tags from the exercise library.
+   
+   Returns:
+   - Set of tag strings from all exercises in the library
+   
+   Example:
+   - If library has exercises with tags [\"strength\" \"chest\"], [\"cardio\" \"legs\"]
+   - Returns #{\"strength\" \"chest\" \"cardio\" \"legs\"}"
+  []
+  (let [exercises @library-state
+        all-tags (mapcat :tags exercises)]
+    (set all-tags)))
+
+(defn filter-by-tags
+  "Filter exercises to exclude those with any tags in the excluded-tags set.
+   
+   An exercise is EXCLUDED if it has ANY tag that appears in excluded-tags.
+   This allows users to opt-out of specific muscle groups or exercise types.
+   
+   Parameters:
+   - exercises: vector of exercise maps
+   - excluded-tags: set of tag strings to exclude
+   
+   Returns:
+   - Vector of exercises that don't have any excluded tags
+   
+   Example:
+   - exercises: [{:name \"Push-ups\" :tags [\"strength\" \"chest\"]}
+                 {:name \"Squats\" :tags [\"strength\" \"legs\"]}
+                 {:name \"Burpees\" :tags [\"cardio\" \"full-body\"]}]
+   - excluded-tags: #{\"chest\" \"cardio\"}
+   - Returns: [{:name \"Squats\" :tags [\"strength\" \"legs\"]}]"
+  [exercises excluded-tags]
+  (filterv
+   (fn [exercise]
+     (let [exercise-tags (set (:tags exercise))]
+       ;; Exercise is included if it has NO tags in the excluded set
+       (empty? (clojure.set/intersection exercise-tags excluded-tags))))
    exercises))
 
 ;; ============================================================================

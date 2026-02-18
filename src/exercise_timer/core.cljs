@@ -27,7 +27,8 @@
      :timer-state {:current-exercise-index 0
                    :remaining-seconds 0
                    :session-state :not-started}
-     :session-config {:equipment #{}}  ; Selected equipment types
+     :session-config {:equipment #{}
+                      :excluded-tags #{}}  ; Selected equipment types and excluded tags
      :ui {:show-edit-exercise false
           :show-import-dialog false
           :show-disclaimer false
@@ -146,20 +147,21 @@
    - new-name: new exercise name
    - difficulty: exercise difficulty (0.5 to 2.0)
    - equipment: vector of equipment type strings
+   - tags: vector of tag strings
    - enabled: whether exercise is enabled
    
    Side effects:
    - Adds or updates exercise in library
    - Updates app state
    - Closes edit exercise dialog"
-  [original-name new-name difficulty equipment enabled]
+  [original-name new-name difficulty equipment tags enabled]
   (let [is-new? (empty? original-name)
         name-changed? (and (not is-new?) (not= original-name new-name))]
     ;; Delete old exercise if editing (either name changed or just updating properties)
     (when (not is-new?)
       (library/delete-exercise! original-name))
     
-    (let [result (library/add-exercise! {:name new-name :difficulty difficulty :equipment equipment :enabled enabled})]
+    (let [result (library/add-exercise! {:name new-name :difficulty difficulty :equipment equipment :tags tags :enabled enabled})]
       (if (contains? result :ok)
         (do
           (update-exercises! (library/load-library))
@@ -168,12 +170,13 @@
                        :edit-exercise-original-name ""
                        :edit-exercise-difficulty 1.0
                        :edit-exercise-equipment ""
+                       :edit-exercise-tags ""
                        :edit-exercise-enabled true
                        :edit-exercise-error nil}))
         (do
           ;; If update failed, restore the original exercise
           (when (not is-new?)
-            (library/add-exercise! {:name original-name :difficulty difficulty :equipment equipment :enabled enabled}))
+            (library/add-exercise! {:name original-name :difficulty difficulty :equipment equipment :tags tags :enabled enabled}))
           (update-exercises! (library/load-library))
           (update-ui! {:edit-exercise-error (:error result)}))))))
 
@@ -332,6 +335,27 @@
                                                 (disj current-equipment equipment)))))}]
               [:span equipment]])]]))
      
+     ;; Tag exclusion checkboxes
+     (let [all-tags (library/get-all-tags)
+           excluded-tags (get-in @app-state [:session-config :excluded-tags])]
+       (when (seq all-tags)
+         [:div.form-group
+          [:label "Exclude from workout (uncheck to exclude):"]
+          [:div.equipment-checkboxes {:role "group" :aria-label "Tag exclusion"}
+           (for [tag (sort all-tags)]
+             ^{:key tag}
+             [:label.equipment-checkbox
+              [:input {:type "checkbox"
+                       :checked (not (contains? excluded-tags tag))
+                       :disabled session-active?
+                       :on-change #(let [checked (-> % .-target .-checked)]
+                                     (swap! app-state update-in [:session-config :excluded-tags]
+                                            (fn [current-excluded]
+                                              (if checked
+                                                (disj current-excluded tag)
+                                                (conj current-excluded tag)))))}]
+              [:span tag]])]]))
+     
      [:div.button-row
       [:button {:on-click (fn []
                             ;; Check if disclaimer has been accepted
@@ -343,7 +367,8 @@
                                       session-config (:session-config @app-state)
                                       duration (:session-duration-minutes ui)
                                       equipment (:equipment session-config)
-                                      config (session/make-session-config duration equipment)
+                                      excluded-tags (:excluded-tags session-config)
+                                      config (session/make-session-config duration equipment excluded-tags)
                                       session-plan (session/generate-session config enabled-exercises)]
                                   (update-current-session! session-plan)
                                   (timer/initialize-session! session-plan)
@@ -519,11 +544,13 @@
               ex-name (:name ex)
               ex-difficulty (:difficulty ex)
               ex-equipment (:equipment ex [])
+              ex-tags (:tags ex [])
               open-edit-fn #(update-ui! {:show-edit-exercise true
                                          :edit-exercise-name ex-name
                                          :edit-exercise-original-name ex-name
                                          :edit-exercise-difficulty ex-difficulty
                                          :edit-exercise-equipment (clojure.string/join ", " ex-equipment)
+                                         :edit-exercise-tags (clojure.string/join ", " ex-tags)
                                          :edit-exercise-enabled enabled?
                                          :edit-exercise-error nil})]
           ^{:key ex-name}
@@ -557,6 +584,7 @@
                                         :edit-exercise-original-name ""
                                         :edit-exercise-difficulty 1.0
                                         :edit-exercise-equipment ""
+                                        :edit-exercise-tags ""
                                         :edit-exercise-enabled true
                                         :edit-exercise-error nil})
                 :aria-label "Add new exercise to library"}
@@ -577,9 +605,11 @@
             original-name (:edit-exercise-original-name ui "")
             difficulty (:edit-exercise-difficulty ui 1.0)
             equipment-str (:edit-exercise-equipment ui "")
+            tags-str (:edit-exercise-tags ui "")
             enabled (:edit-exercise-enabled ui true)
             error (:edit-exercise-error ui)
             new-equipment-input (:edit-exercise-new-equipment ui "")
+            new-tag-input (:edit-exercise-new-tag ui "")
             is-new? (empty? original-name)
             
             ;; Parse current equipment from string to set
@@ -587,9 +617,17 @@
                                #{}
                                (set (map clojure.string/trim (clojure.string/split equipment-str #","))))
             
+            ;; Parse current tags from string to set
+            current-tags (if (empty? tags-str)
+                          #{}
+                          (set (map clojure.string/trim (clojure.string/split tags-str #","))))
+            
             ;; Get all known equipment types and merge with current equipment
             ;; This ensures newly added equipment types show up immediately
             all-equipment-types (clojure.set/union (library/get-equipment-types) current-equipment)
+            
+            ;; Get all known tags and merge with current tags
+            all-tags (clojure.set/union (library/get-all-tags) current-tags)
             
             ;; Dialog configuration
             title (if is-new? "Add New Exercise" "Edit Exercise")
@@ -597,13 +635,17 @@
             
             ;; Close handler
             close-fn #(update-ui! {:show-edit-exercise false
-                                   :edit-exercise-new-equipment ""})
+                                   :edit-exercise-new-equipment ""
+                                   :edit-exercise-new-tag ""})
             
             ;; Save handler
             save-fn #(let [equipment-vec (if (empty? current-equipment)
                                            []
-                                           (vec current-equipment))]
-                      (save-exercise! original-name name difficulty equipment-vec enabled))
+                                           (vec current-equipment))
+                           tags-vec (if (empty? current-tags)
+                                     []
+                                     (vec current-tags))]
+                      (save-exercise! original-name name difficulty equipment-vec tags-vec enabled))
             
             ;; Toggle equipment handler
             toggle-equipment-fn (fn [equip]
@@ -615,6 +657,16 @@
                                                 (clojure.string/join ", " (sort new-equipment)))]
                                    (update-ui! {:edit-exercise-equipment new-str})))
             
+            ;; Toggle tag handler
+            toggle-tag-fn (fn [tag]
+                           (let [new-tags (if (contains? current-tags tag)
+                                           (disj current-tags tag)
+                                           (conj current-tags tag))
+                                 new-str (if (empty? new-tags)
+                                          ""
+                                          (clojure.string/join ", " (sort new-tags)))]
+                             (update-ui! {:edit-exercise-tags new-str})))
+            
             ;; Add new equipment handler
             add-equipment-fn (fn []
                               (when-not (empty? new-equipment-input)
@@ -622,7 +674,16 @@
                                       new-equipment (conj current-equipment trimmed)
                                       new-str (clojure.string/join ", " (sort new-equipment))]
                                   (update-ui! {:edit-exercise-equipment new-str
-                                               :edit-exercise-new-equipment ""}))))]
+                                               :edit-exercise-new-equipment ""}))))
+            
+            ;; Add new tag handler
+            add-tag-fn (fn []
+                        (when-not (empty? new-tag-input)
+                          (let [trimmed (clojure.string/trim new-tag-input)
+                                new-tags (conj current-tags trimmed)
+                                new-str (clojure.string/join ", " (sort new-tags))]
+                            (update-ui! {:edit-exercise-tags new-str
+                                         :edit-exercise-new-tag ""}))))]
         
         [:div.modal-overlay {:on-click close-fn
                              :role "dialog"
@@ -686,6 +747,35 @@
                                    (.stopPropagation %)
                                    (add-equipment-fn))
                       :disabled (empty? new-equipment-input)
+                      :style {:min-width "60px"}}
+             "Add"]]]
+          
+          [:div.form-group
+           [:label "Tags (select all that apply):"]
+           [:div.equipment-checkboxes {:role "group" :aria-label "Tag selection"}
+            (for [tag (sort all-tags)]
+              ^{:key tag}
+              [:label.equipment-checkbox
+               [:input {:type "checkbox"
+                        :checked (contains? current-tags tag)
+                        :on-change #(toggle-tag-fn tag)}]
+               [:span tag]])]
+           
+           ;; Add new tag
+           [:div.add-equipment {:style {:margin-top "10px" :display "flex" :gap "8px"}}
+            [:input {:type "text"
+                     :value new-tag-input
+                     :placeholder "Add new tag"
+                     :style {:flex "1"}
+                     :on-change #(update-ui! {:edit-exercise-new-tag (-> % .-target .-value)})
+                     :on-key-press #(when (= (.-key %) "Enter") 
+                                     (.preventDefault %)
+                                     (add-tag-fn))}]
+            [:button {:on-click #(do
+                                   (.preventDefault %)
+                                   (.stopPropagation %)
+                                   (add-tag-fn))
+                      :disabled (empty? new-tag-input)
                       :style {:min-width "60px"}}
              "Add"]]]
           
@@ -808,7 +898,8 @@
                                       session-config (:session-config @app-state)
                                       duration (get-in @app-state [:ui :session-duration-minutes])
                                       equipment (:equipment session-config)
-                                      config (session/make-session-config duration equipment)
+                                      excluded-tags (:excluded-tags session-config)
+                                      config (session/make-session-config duration equipment excluded-tags)
                                       session-plan (session/generate-session config enabled-exercises)]
                                   (update-current-session! session-plan)
                                   (timer/initialize-session! session-plan)
