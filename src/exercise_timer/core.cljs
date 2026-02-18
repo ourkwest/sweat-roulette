@@ -273,6 +273,47 @@
           (assoc-in session-ex [:exercise :difficulty] current-difficulty))))))
 
 ;; ============================================================================
+;; Session Config Persistence
+;; ============================================================================
+
+(def ^:private session-config-storage-key "exercise-timer-session-config")
+
+(defn- save-session-config!
+  "Save session configuration to localStorage.
+   
+   Parameters:
+   - config: map with :equipment, :excluded-tags, and :duration-minutes
+   
+   Side effects:
+   - Writes to localStorage"
+  [config]
+  (try
+    (let [config-data {:equipment (vec (:equipment config))
+                       :excluded-tags (vec (:excluded-tags config))
+                       :duration-minutes (:duration-minutes config)}
+          json-str (js/JSON.stringify (clj->js config-data))]
+      (.setItem js/localStorage session-config-storage-key json-str))
+    (catch js/Error e
+      (js/console.error "Failed to save session config:" (.-message e)))))
+
+(defn- load-session-config
+  "Load session configuration from localStorage.
+   
+   Returns:
+   - Map with :equipment, :excluded-tags, and :duration-minutes if found
+   - nil if not found or error"
+  []
+  (try
+    (when-let [json-str (.getItem js/localStorage session-config-storage-key)]
+      (let [parsed (js->clj (js/JSON.parse json-str) :keywordize-keys true)]
+        {:equipment (set (:equipment parsed))
+         :excluded-tags (set (:excluded-tags parsed))
+         :duration-minutes (:duration-minutes parsed)}))
+    (catch js/Error e
+      (js/console.error "Failed to load session config:" (.-message e))
+      nil)))
+
+;; ============================================================================
 ;; Initialization
 ;; ============================================================================
 
@@ -281,16 +322,39 @@
    
    Side effects:
    - Loads exercise library from localStorage
-   - Updates app-state with loaded exercises
-   - Initializes equipment selection with all equipment types
+   - Loads session config preferences from localStorage
+   - Updates app-state with loaded exercises and config
+   - Initializes equipment selection with all equipment types if no saved config
    
    Validates: Requirements 6.5, 6.6, 13.4"
   []
   (let [exercises (library/load-library)
-        equipment-types (library/get-equipment-types)]
+        equipment-types (library/get-equipment-types)
+        saved-config (load-session-config)]
     (update-exercises! exercises)
-    ;; Initialize equipment selection with all equipment types (default)
-    (swap! app-state assoc-in [:session-config :equipment] equipment-types)))
+    ;; Load saved config or initialize with defaults
+    (if saved-config
+      (do
+        ;; Restore saved preferences
+        (swap! app-state assoc-in [:session-config :equipment] (:equipment saved-config))
+        (swap! app-state assoc-in [:session-config :excluded-tags] (:excluded-tags saved-config))
+        (when (:duration-minutes saved-config)
+          (swap! app-state assoc-in [:ui :session-duration-minutes] (:duration-minutes saved-config))))
+      ;; Initialize with defaults (all equipment, no excluded tags)
+      (swap! app-state assoc-in [:session-config :equipment] equipment-types))))
+
+;; Add watcher to save session config when it changes
+(add-watch app-state :session-config-watcher
+  (fn [_ _ old-state new-state]
+    (let [old-config {:equipment (get-in old-state [:session-config :equipment])
+                      :excluded-tags (get-in old-state [:session-config :excluded-tags])
+                      :duration-minutes (get-in old-state [:ui :session-duration-minutes])}
+          new-config {:equipment (get-in new-state [:session-config :equipment])
+                      :excluded-tags (get-in new-state [:session-config :excluded-tags])
+                      :duration-minutes (get-in new-state [:ui :session-duration-minutes])}]
+      ;; Only save if config actually changed
+      (when (not= old-config new-config)
+        (save-session-config! new-config)))))
 
 ;; ============================================================================
 ;; UI Components
@@ -335,14 +399,18 @@
                                                 (disj current-equipment equipment)))))}]
               [:span equipment]])]]))
      
-     ;; Tag exclusion checkboxes
+     ;; Tag exclusion checkboxes - split into Type and Muscle Groups
      (let [all-tags (library/get-all-tags)
-           excluded-tags (get-in @app-state [:session-config :excluded-tags])]
+           excluded-tags (get-in @app-state [:session-config :excluded-tags])
+           type-tags #{"cardio" "strength" "flexibility" "balance" "plyometric" 
+                       "low-impact" "high-impact"}
+           muscle-tags (clojure.set/difference all-tags type-tags)]
        (when (seq all-tags)
          [:div.form-group
-          [:label "Exclude from workout (uncheck to exclude):"]
-          [:div.equipment-checkboxes {:role "group" :aria-label "Tag exclusion"}
-           (for [tag (sort all-tags)]
+          ;; Type tags section
+          [:label "Type:"]
+          [:div.equipment-checkboxes {:role "group" :aria-label "Exercise type exclusion"}
+           (for [tag (sort (filter type-tags all-tags))]
              ^{:key tag}
              [:label.equipment-checkbox
               [:input {:type "checkbox"
@@ -354,7 +422,26 @@
                                               (if checked
                                                 (disj current-excluded tag)
                                                 (conj current-excluded tag)))))}]
-              [:span tag]])]]))
+              [:span tag]])]
+          
+          ;; Muscle groups section
+          (when (seq muscle-tags)
+            [:div {:style {:margin-top "15px"}}
+             [:label "Muscle Groups:"]
+             [:div.equipment-checkboxes {:role "group" :aria-label "Muscle group exclusion"}
+              (for [tag (sort muscle-tags)]
+                ^{:key tag}
+                [:label.equipment-checkbox
+                 [:input {:type "checkbox"
+                          :checked (not (contains? excluded-tags tag))
+                          :disabled session-active?
+                          :on-change #(let [checked (-> % .-target .-checked)]
+                                        (swap! app-state update-in [:session-config :excluded-tags]
+                                               (fn [current-excluded]
+                                                 (if checked
+                                                   (disj current-excluded tag)
+                                                   (conj current-excluded tag)))))}]
+                 [:span tag]])]])]))
      
      [:div.button-row
       [:button {:on-click (fn []
