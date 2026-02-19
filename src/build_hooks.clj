@@ -10,8 +10,8 @@
 
 (defn copy-static-assets
   "Build hook to copy static assets from src/public to .dev-build
-   This runs before each build to ensure static files are up to date."
-  {:shadow.build/stage :configure}
+   This runs before each compilation to ensure static files are up to date."
+  {:shadow.build/stage :compile-prepare}
   [build-state & args]
   (println "Copying static assets from src/public/ to .dev-build/...")
   (try
