@@ -637,6 +637,59 @@
               session-ex)))
         exercises-with-durations))
 
+(defn- filter-by-equipment
+  "Filter exercises to only those that can be performed with available equipment.
+   
+   Parameters:
+   - exercises: vector of exercise maps
+   - equipment-set: set of available equipment types
+   
+   Returns:
+   - vector of exercises that can be performed with available equipment"
+  [exercises equipment-set]
+  (if (empty? equipment-set)
+    exercises
+    (filterv
+     (fn [exercise]
+       (let [required-equipment (:equipment exercise [])]
+         ;; Exercise is included if all required equipment is available
+         ;; Empty equipment means no equipment needed
+         (every? #(contains? equipment-set %) required-equipment)))
+     exercises)))
+
+(defn- filter-by-excluded-tags
+  "Filter exercises to exclude those with any of the excluded tags.
+   
+   Parameters:
+   - exercises: vector of exercise maps
+   - excluded-tags: set of tags to exclude
+   
+   Returns:
+   - vector of exercises without any excluded tags"
+  [exercises excluded-tags]
+  (if (empty? excluded-tags)
+    exercises
+    (filterv
+     (fn [exercise]
+       (let [exercise-tags (set (:tags exercise []))]
+         ;; Exercise is included if it has NO tags in the excluded set
+         (empty? (clojure.set/intersection exercise-tags excluded-tags))))
+     exercises)))
+
+(defn- calculate-target-exercise-count
+  "Calculate the ideal number of exercises for a session.
+   
+   Parameters:
+   - total-duration-seconds: total session duration in seconds
+   - available-exercises: number of exercises available after filtering
+   
+   Returns:
+   - integer representing target number of exercises"
+  [total-duration-seconds available-exercises]
+  (let [ideal-count (max min-exercises-per-session 
+                         (int (/ total-duration-seconds target-exercise-duration-seconds)))]
+    (min ideal-count available-exercises)))
+
 ;; ============================================================================
 ;; Session Generation
 ;; ============================================================================
@@ -698,42 +751,15 @@
   (let [;; Step 1: Convert minutes to seconds
         total-duration-seconds (config->seconds config)
         
-        ;; Step 2: Filter exercises by selected equipment
-        equipment-set (get config :equipment #{})
-        filtered-exercises (if (empty? equipment-set)
-                             ;; If no equipment selected, use all exercises
-                             exercises
-                             ;; Otherwise, filter by equipment
-                             (filterv
-                              (fn [exercise]
-                                (let [required-equipment (:equipment exercise [])]
-                                  ;; Exercise is included if all required equipment is available
-                                  ;; Empty equipment means no equipment needed
-                                  (every? (fn [eq]
-                                            (contains? equipment-set eq))
-                                          required-equipment)))
-                              exercises))
-        
-        ;; Step 2.5: Filter exercises by excluded tags
-        excluded-tags (get config :excluded-tags #{})
-        tag-filtered-exercises (if (empty? excluded-tags)
-                                 filtered-exercises
-                                 (filterv
-                                  (fn [exercise]
-                                    (let [exercise-tags (set (:tags exercise []))]
-                                      ;; Exercise is included if it has NO tags in the excluded set
-                                      (empty? (clojure.set/intersection exercise-tags excluded-tags))))
-                                  filtered-exercises))
+        ;; Step 2: Filter exercises by equipment and tags
+        equipment-filtered (filter-by-equipment exercises (get config :equipment #{}))
+        tag-filtered (filter-by-excluded-tags equipment-filtered (get config :excluded-tags #{}))
         
         ;; Step 3: Determine number of exercises to select
-        ;; Aim for approximately target duration per exercise for better workout pacing
-        ;; Use at least min exercises for variety, but cap at available exercises
-        ideal-num-exercises (max min-exercises-per-session 
-                                 (int (/ total-duration-seconds target-exercise-duration-seconds)))
-        num-exercises (min ideal-num-exercises (count tag-filtered-exercises))
+        num-exercises (calculate-target-exercise-count total-duration-seconds (count tag-filtered))
         
         ;; Step 4: Select exercises using round-robin without repetition
-        selected-exercises (select-exercises-round-robin tag-filtered-exercises num-exercises)
+        selected-exercises (select-exercises-round-robin tag-filtered num-exercises)
         
         ;; Step 5: Distribute time across exercises based on difficulties
         exercises-with-durations (distribute-time-by-difficulty selected-exercises total-duration-seconds)

@@ -17,6 +17,58 @@
 (declare update-ui!)
 
 ;; ============================================================================
+;; Reusable UI Components
+;; ============================================================================
+
+(defn checkbox
+  "Reusable checkbox component.
+   
+   Parameters:
+   - opts: map with :checked, :disabled, :on-change, :label"
+  [{:keys [checked disabled on-change label]}]
+  [:label.equipment-checkbox
+   [:input {:type "checkbox"
+            :checked checked
+            :disabled disabled
+            :on-change on-change}]
+   [:span label]])
+
+(defn tag-badge
+  "Reusable tag badge component.
+   
+   Parameters:
+   - tag: tag string
+   - class: optional CSS class"
+  ([tag] (tag-badge tag nil))
+  ([tag class]
+   [:span {:class (if class
+                    (str "tag-badge " class)
+                    "tag-badge")
+           :key tag}
+    tag]))
+
+;; ============================================================================
+;; Constants
+;; ============================================================================
+
+(def ^:private type-tags
+  "Set of exercise type tags (as opposed to muscle group tags)"
+  #{"cardio" "strength" "flexibility" "balance" "plyometric" 
+    "low-impact" "high-impact"})
+
+(defn- split-tags
+  "Split tags into type tags and muscle tags.
+   
+   Parameters:
+   - tags: collection of tag strings
+   
+   Returns:
+   - map with :type and :muscle keys containing filtered tag lists"
+  [tags]
+  {:type (filter #(contains? type-tags %) tags)
+   :muscle (filter #(not (contains? type-tags %)) tags)})
+
+;; ============================================================================
 ;; Global App State
 ;; ============================================================================
 
@@ -389,23 +441,16 @@
           [:div.equipment-checkboxes {:role "group" :aria-label "Equipment selection"}
            (for [equipment (sort all-equipment-types)]
              ^{:key equipment}
-             [:label.equipment-checkbox
-              [:input {:type "checkbox"
-                       :checked (contains? selected-equipment equipment)
-                       :disabled session-active?
-                       :on-change #(let [checked (-> % .-target .-checked)]
-                                     (swap! app-state update-in [:session-config :equipment]
-                                            (fn [current-equipment]
-                                              (if checked
-                                                (conj current-equipment equipment)
-                                                (disj current-equipment equipment)))))}]
-              [:span equipment]])]]))
+             [checkbox {:checked (contains? selected-equipment equipment)
+                        :disabled session-active?
+                        :label equipment
+                        :on-change #(let [checked (-> % .-target .-checked)]
+                                      (swap! app-state update-in [:session-config :equipment]
+                                             (if checked conj disj) equipment))}])]]))
      
      ;; Tag exclusion checkboxes - split into Type and Muscle Groups
      (let [all-tags (library/get-all-tags)
            excluded-tags (get-in @app-state [:session-config :excluded-tags])
-           type-tags #{"cardio" "strength" "flexibility" "balance" "plyometric" 
-                       "low-impact" "high-impact"}
            muscle-tags (clojure.set/difference all-tags type-tags)]
        (when (seq all-tags)
          [:div.form-group
@@ -414,17 +459,12 @@
           [:div.equipment-checkboxes {:role "group" :aria-label "Exercise type exclusion"}
            (for [tag (sort (filter type-tags all-tags))]
              ^{:key tag}
-             [:label.equipment-checkbox
-              [:input {:type "checkbox"
-                       :checked (not (contains? excluded-tags tag))
+             [checkbox {:checked (not (contains? excluded-tags tag))
                        :disabled session-active?
+                       :label tag
                        :on-change #(let [checked (-> % .-target .-checked)]
                                      (swap! app-state update-in [:session-config :excluded-tags]
-                                            (fn [current-excluded]
-                                              (if checked
-                                                (disj current-excluded tag)
-                                                (conj current-excluded tag)))))}]
-              [:span tag]])]
+                                            (if checked disj conj) tag))}])]
           
           ;; Muscle groups section
           (when (seq muscle-tags)
@@ -433,17 +473,12 @@
              [:div.equipment-checkboxes {:role "group" :aria-label "Muscle group exclusion"}
               (for [tag (sort muscle-tags)]
                 ^{:key tag}
-                [:label.equipment-checkbox
-                 [:input {:type "checkbox"
-                          :checked (not (contains? excluded-tags tag))
-                          :disabled session-active?
-                          :on-change #(let [checked (-> % .-target .-checked)]
-                                        (swap! app-state update-in [:session-config :excluded-tags]
-                                               (fn [current-excluded]
-                                                 (if checked
-                                                   (disj current-excluded tag)
-                                                   (conj current-excluded tag)))))}]
-                 [:span tag]])]])]))
+                [checkbox {:checked (not (contains? excluded-tags tag))
+                           :disabled session-active?
+                           :label tag
+                           :on-change #(let [checked (-> % .-target .-checked)]
+                                         (swap! app-state update-in [:session-config :excluded-tags]
+                                                (if checked disj conj) tag))}])]])]))
      
      [:div.button-row
       [:button {:on-click (fn []
@@ -660,20 +695,17 @@
                [:span.exercise-equipment 
                 (str "Equipment: " (clojure.string/join ", " ex-equipment))])]
             [:div.exercise-tags
-             (let [type-tags #{"cardio" "strength" "flexibility" "balance" "plyometric" 
-                               "low-impact" "high-impact"}
-                   type-tag-list (filter #(contains? type-tags %) ex-tags)
-                   muscle-tag-list (filter #(not (contains? type-tags %)) ex-tags)]
+             (let [{:keys [type muscle]} (split-tags ex-tags)]
                (concat
                  ;; Single-sided badge first if applicable
                  (when ex-sided
                    [^{:key "sided"} [:span.tag-badge.sided-badge "single-sided"]])
                  ;; Then type tags
-                 (for [tag type-tag-list]
+                 (for [tag type]
                    ^{:key tag}
                    [:span.tag-badge.type-tag tag])
                  ;; Then muscle tags
-                 (for [tag muscle-tag-list]
+                 (for [tag muscle]
                    ^{:key tag}
                    [:span.tag-badge.muscle-tag tag])))]]]))]
      [:div.library-actions
@@ -900,9 +932,7 @@
           [:div.form-group
            [:label "Type:"]
            [:div.equipment-checkboxes {:role "group" :aria-label "Exercise type selection"}
-            (let [type-tags #{"cardio" "strength" "flexibility" "balance" "plyometric" 
-                              "low-impact" "high-impact"}
-                  type-tag-list (sort (filter #(contains? type-tags %) all-tags))]
+            (let [type-tag-list (sort (filter #(contains? type-tags %) all-tags))]
               (for [tag type-tag-list]
                 ^{:key tag}
                 [:label.equipment-checkbox
@@ -915,9 +945,7 @@
           [:div.form-group
            [:label "Muscle Groups:"]
            [:div.equipment-checkboxes {:role "group" :aria-label "Muscle group selection"}
-            (let [type-tags #{"cardio" "strength" "flexibility" "balance" "plyometric" 
-                              "low-impact" "high-impact"}
-                  muscle-tag-list (sort (filter #(not (contains? type-tags %)) all-tags))]
+            (let [muscle-tag-list (sort (filter #(not (contains? type-tags %)) all-tags))]
               (for [tag muscle-tag-list]
                 ^{:key tag}
                 [:label.equipment-checkbox
