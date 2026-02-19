@@ -526,32 +526,34 @@
             total (count (:exercises session))
             ex-name (get-in current-ex [:exercise :name])
             ex-difficulty (get-in current-ex [:exercise :difficulty])
-            state-keyword (:session-state timer-state)
-            is-active? (or (= state-keyword :running) (= state-keyword :paused))]
+            ex-tags (get-in current-ex [:exercise :tags])]
         [:div.exercise-display {:role "status" :aria-live "polite"}
-         [:h2 "Current Exercise"]
          [:div.exercise-name {:aria-label (str "Current exercise: " ex-name)} ex-name]
          
-         ;; Difficulty adjustment controls (only show during active exercise)
-         (when is-active?
-           [:div.difficulty-controls {:role "group" :aria-label "Difficulty adjustment"}
-            [:button.difficulty-btn {:on-click #(do
-                                                   (library/update-exercise-difficulty! ex-name (max 0.5 (- ex-difficulty 0.1)))
-                                                   (update-exercises! (library/load-library)))
-                                     :aria-label (str "Decrease difficulty for " ex-name " (currently " ex-difficulty ")")
-                                     :title "Decrease difficulty"}
-             "−"]
-            [:span.difficulty-value {:aria-label (str "Current difficulty: " ex-difficulty)}
-             (str "Difficulty: " (.toFixed ex-difficulty 1))]
-            [:button.difficulty-btn {:on-click #(do
-                                                   (library/update-exercise-difficulty! ex-name (min 2.0 (+ ex-difficulty 0.1)))
-                                                   (update-exercises! (library/load-library)))
-                                     :aria-label (str "Increase difficulty for " ex-name " (currently " ex-difficulty ")")
-                                     :title "Increase difficulty"}
-             "+"]])
+         ;; Exercise tags
+         (when (seq ex-tags)
+           (let [{:keys [type muscle]} (split-tags ex-tags)]
+             [:div.exercise-tags
+              (concat
+                (map #(tag-badge % "type-tag") type)
+                (map #(tag-badge % "muscle-tag") muscle))]))
          
-         [:div.exercise-progress {:aria-label (str "Exercise " (inc index) " of " total)}
-          (str "Exercise " (inc index) " of " total)]]))))
+         ;; Difficulty adjustment controls
+         [:div.difficulty-controls {:role "group" :aria-label "Difficulty adjustment"}
+          [:button.difficulty-btn {:on-click #(do
+                                                 (library/update-exercise-difficulty! ex-name (max 0.5 (- ex-difficulty 0.1)))
+                                                 (update-exercises! (library/load-library)))
+                                   :aria-label (str "Decrease difficulty for " ex-name " (currently " ex-difficulty ")")
+                                   :title "Decrease difficulty"}
+           "−"]
+          [:span.difficulty-value {:aria-label (str "Current difficulty: " ex-difficulty)}
+           (str "Difficulty: " (.toFixed ex-difficulty 1))]
+          [:button.difficulty-btn {:on-click #(do
+                                                 (library/update-exercise-difficulty! ex-name (min 2.0 (+ ex-difficulty 0.1)))
+                                                 (update-exercises! (library/load-library)))
+                                   :aria-label (str "Increase difficulty for " ex-name " (currently " ex-difficulty ")")
+                                   :title "Increase difficulty"}
+           "+"]]]))))
 
 (defn timer-display []
   (let [timer-state (:timer-state @app-state)
@@ -559,6 +561,17 @@
         formatted (format/seconds-to-mm-ss remaining)]
     [:div.timer-display {:role "timer" :aria-live "polite" :aria-atomic "true"}
      [:div.timer-value {:aria-label (str "Time remaining: " formatted)} formatted]]))
+
+;; Quick Actions Component (Skip and Search buttons)
+(defn quick-actions []
+  [:div.quick-actions
+   [:button {:on-click #(do (timer/skip-exercise!)
+                            (update-timer-state! (timer/get-state)))
+             :aria-label "Skip current exercise"}
+    "Skip"]
+   [:button {:on-click #(timer/search-exercise)
+             :aria-label "Search for current exercise instructions"}
+    "Search Exercise"]])
 
 ;; Progress Bar Component
 (defn progress-bar []
@@ -582,7 +595,6 @@
         session (:current-session @app-state)]
     (when session
       [:div.control-panel {:role "group" :aria-label "Timer controls"}
-       [:h3 "Controls"]
        (case state-keyword
          :not-started
          [:button {:on-click #(do (timer/start!)
@@ -596,17 +608,10 @@
                                    (update-timer-state! (timer/get-state)))
                     :aria-label "Pause workout (Spacebar)"}
            "Pause"]
-          [:button {:on-click #(do (timer/skip-exercise!)
-                                   (update-timer-state! (timer/get-state)))
-                    :aria-label "Skip current exercise"}
-           "Skip"]
           [:button {:on-click #(do (timer/restart!)
                                    (update-timer-state! (timer/get-state)))
                    :aria-label "Restart workout (R key)"}
-           "Restart"]
-          [:button {:on-click #(timer/search-exercise)
-                    :aria-label "Search for current exercise instructions"}
-           "Search Exercise"]]
+           "Restart"]]
          
          :paused
          [:<>
@@ -614,17 +619,10 @@
                                    (update-timer-state! (timer/get-state)))
                     :aria-label "Resume workout (Spacebar)"}
            "Resume"]
-          [:button {:on-click #(do (timer/skip-exercise!)
-                                   (update-timer-state! (timer/get-state)))
-                    :aria-label "Skip current exercise"}
-           "Skip"]
           [:button {:on-click #(do (timer/restart!)
                                    (update-timer-state! (timer/get-state)))
                    :aria-label "Restart workout (R key)"}
-           "Restart"]
-          [:button {:on-click #(timer/search-exercise)
-                    :aria-label "Search for current exercise instructions"}
-           "Search Exercise"]]
+           "Restart"]]
          
          :completed
          [:div "Session Complete!"]
@@ -1119,6 +1117,12 @@
     [:div.app-container
      [:header.session-header {:class (when session "active")}
       [:div.progress-fill {:style (when session {:width (str progress-pct "%")})}]
+      (when session
+        (let [timer-state (:timer-state @app-state)
+              index (:current-exercise-index timer-state)
+              total (count (:exercises session))]
+          [:div.exercise-counter {:aria-label (str "Exercise " (inc index) " of " total)}
+           (str (inc index) " / " total)]))
       [:h1 "Sweat Roulette"]
       (when session
         (let [timer-state (:timer-state @app-state)
@@ -1134,6 +1138,7 @@
         [:div.session-area
          [:div.active-session
           [exercise-display]
+          [quick-actions]
           [timer-display]
           [control-panel]
           [completion-screen]]]
