@@ -801,38 +801,71 @@
         [:div.modal-overlay {:on-click close-fn
                              :role "dialog"
                              :aria-modal "true"
-                             :aria-labelledby "exercise-dialog-title"}
+                             :aria-label (if is-new? "Add new exercise" "Edit exercise")}
          [:div.modal-content {:on-click #(.stopPropagation %)}
-          [:h2#exercise-dialog-title title]
           
-          (when error
-            [:div.error-message {:role "alert" :aria-live "assertive"} error])
-          
-          [:div.form-group
-           [:label {:for "exercise-name"} "Exercise Name:"]
-           [:input {:type "text"
+          ;; Modal Header - sticky at top
+          [:div.modal-header
+           (when error
+             [:div.error-message {:role "alert" :aria-live "assertive"} error])
+           
+           [:input.exercise-name-input {:type "text"
                     :id "exercise-name"
                     :value name
-                    :placeholder "e.g., Push-ups"
+                    :placeholder (if is-new? "Exercise name..." "")
                     :aria-required "true"
+                    :aria-label "Exercise name"
                     :ref (fn [el] (when el (.focus el)))
                     :on-change #(update-ui! {:edit-exercise-name (-> % .-target .-value)})
                     :on-key-press #(when (= (.-key %) "Enter") (save-fn))}]]
           
+          ;; Modal Body - scrollable content
+          [:div.modal-body
+          
+          ;; Checkboxes for enabled and sided
+          [:div.form-group.checkbox-row
+           [:label.equipment-checkbox
+            [:input {:type "checkbox"
+                     :checked enabled
+                     :on-change #(update-ui! {:edit-exercise-enabled (-> % .-target .-checked)})}]
+            [:span "Include in sessions"]]
+           [:label.equipment-checkbox
+            [:input {:type "checkbox"
+                     :checked sided
+                     :on-change #(update-ui! {:edit-exercise-sided (-> % .-target .-checked)})}]
+            [:span "Single-sided"]]]
+          
           [:div.form-group
            [:label {:for "exercise-difficulty"} 
-            (str "Difficulty: " difficulty " (0.5 = easier, 2.0 = harder)")]
-           [:input {:type "range"
-                    :id "exercise-difficulty"
-                    :min 0.5
-                    :max 2.0
-                    :step 0.1
-                    :value difficulty
-                    :aria-valuemin 0.5
-                    :aria-valuemax 2.0
-                    :aria-valuenow difficulty
-                    :aria-label "Exercise difficulty level"
-                    :on-change #(update-ui! {:edit-exercise-difficulty (js/parseFloat (-> % .-target .-value))})}]]
+            (str "Difficulty: " (.toFixed difficulty 1))]
+           [:div.difficulty-control
+            [:button.difficulty-btn {:on-click #(do
+                                                   (.preventDefault %)
+                                                   (.stopPropagation %)
+                                                   (update-ui! {:edit-exercise-difficulty (max 0.5 (- difficulty 0.1))}))
+                                     :disabled (<= difficulty 0.5)
+                                     :aria-label "Decrease difficulty"
+                                     :title "Decrease difficulty"}
+             "−"]
+            [:input {:type "range"
+                     :id "exercise-difficulty"
+                     :min 0.5
+                     :max 2.0
+                     :step 0.1
+                     :value difficulty
+                     :aria-valuemin 0.5
+                     :aria-valuemax 2.0
+                     :aria-valuenow difficulty
+                     :aria-label "Exercise difficulty level"
+                     :on-change #(update-ui! {:edit-exercise-difficulty (js/parseFloat (-> % .-target .-value))})}]
+            [:button.difficulty-btn {:on-click #(do
+                                                   (.preventDefault %)
+                                                   (.stopPropagation %)
+                                                   (update-ui! {:edit-exercise-difficulty (min 2.0 (+ difficulty 0.1))}))
+                                     :disabled (>= difficulty 2.0)
+                                     :aria-label "Increase difficulty"
+                                     :title "Increase difficulty"}
+             "+"]]]
           
           [:div.form-group
            [:label "Equipment (select all that apply):"]
@@ -913,21 +946,11 @@
                       :style {:min-width "60px"}}
              "Add"]]]
           
-          [:div.form-group
-           [:label.equipment-checkbox
-            [:input {:type "checkbox"
-                     :checked enabled
-                     :on-change #(update-ui! {:edit-exercise-enabled (-> % .-target .-checked)})}]
-            [:span "Include in sessions"]]]
+          ] ;; End modal-body
           
-          [:div.form-group
-           [:label.equipment-checkbox
-            [:input {:type "checkbox"
-                     :checked sided
-                     :on-change #(update-ui! {:edit-exercise-sided (-> % .-target .-checked)})}]
-            [:span "Single-sided"]]]
-          
-          [:div.modal-actions
+          ;; Modal Footer - sticky at bottom
+          [:div.modal-footer
+           [:div.modal-actions
            [:button {:on-click save-fn
                      :aria-label (if is-new? "Add exercise to library" "Save exercise changes")}
             button-text]
@@ -952,7 +975,11 @@
                                   :aria-label (str "Delete " original-name)
                                   :style {:background "#e74c3c"
                                           :margin-left "auto"}}
-              "Delete"])]]]))))
+              "Delete"])]] ;; End modal-actions and modal-footer
+          ] ;; End modal-body
+          ])) ;; End modal-content and modal-overlay
+      )) ;; End when and outer let
+          
 ;; Import Conflict Dialog Component
 (defn import-conflict-dialog []
   (let [ui (:ui @app-state)
