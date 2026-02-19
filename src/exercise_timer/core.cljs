@@ -651,11 +651,31 @@
                                :style {:cursor "pointer"}
                                :aria-label (str "Edit " ex-name)}
            [:div.exercise-info
-            [:span.exercise-name ex-name]
-            [:span.exercise-difficulty 
-             (str "Difficulty: " ex-difficulty
-                  (when-not (empty? ex-equipment)
-                    (str ", " (clojure.string/join ", " ex-equipment))))]]]))]
+            [:div.exercise-header
+             [:span.exercise-name ex-name]]
+            [:div.exercise-details
+             [:span.exercise-difficulty 
+              (str "Difficulty: " (.toFixed ex-difficulty 1))]
+             (when-not (empty? ex-equipment)
+               [:span.exercise-equipment 
+                (str "Equipment: " (clojure.string/join ", " ex-equipment))])]
+            [:div.exercise-tags
+             (let [type-tags #{"cardio" "strength" "flexibility" "balance" "plyometric" 
+                               "low-impact" "high-impact"}
+                   type-tag-list (filter #(contains? type-tags %) ex-tags)
+                   muscle-tag-list (filter #(not (contains? type-tags %)) ex-tags)]
+               (concat
+                 ;; Single-sided badge first if applicable
+                 (when ex-sided
+                   [^{:key "sided"} [:span.tag-badge.sided-badge "single-sided"]])
+                 ;; Then type tags
+                 (for [tag type-tag-list]
+                   ^{:key tag}
+                   [:span.tag-badge.type-tag tag])
+                 ;; Then muscle tags
+                 (for [tag muscle-tag-list]
+                   ^{:key tag}
+                   [:span.tag-badge.muscle-tag tag])))]]]))]
      [:div.library-actions
       [:button {:on-click #(library/export-and-download!)
                 :aria-label "Export exercise library to JSON file"}

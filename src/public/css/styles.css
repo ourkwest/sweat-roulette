@@ -491,7 +491,14 @@ button:disabled {
 .exercise-item .exercise-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  flex: 1;
+}
+
+.exercise-item .exercise-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .exercise-item .exercise-name {
@@ -500,9 +507,66 @@ button:disabled {
   color: #2c3e50;
 }
 
-.exercise-item .exercise-difficulty {
-  font-size: 0.9rem;
+.exercise-item .exercise-badge {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.exercise-item .sided-badge {
+  background: #f4ecf7;
+  color: #7d3c98;
+  border: 1px solid #9b59b6;
+}
+
+.exercise-item .exercise-details {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
   color: #7f8c8d;
+}
+
+.exercise-item .exercise-difficulty {
+  font-weight: 500;
+}
+
+.exercise-item .exercise-equipment {
+  color: #95a5a6;
+}
+
+.exercise-item .exercise-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.exercise-item .tag-badge {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: #f0f0f0;
+  color: #555;
+  border: 1px solid #ddd;
+}
+
+.exercise-item .tag-badge.sided-badge {
+  background: #f4ecf7;
+  color: #7d3c98;
+  border: 1px solid #9b59b6;
+}
+
+.exercise-item .tag-badge.type-tag {
+  background: #e8f4f8;
+  color: #2980b9;
+  border: 1px solid #3498db;
+}
+
+.exercise-item .tag-badge.muscle-tag {
+  background: #fef5e7;
+  color: #d68910;
+  border: 1px solid #f39c12;
 }
 
 .exercise-item .exercise-controls {
