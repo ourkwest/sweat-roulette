@@ -1,0 +1,18 @@
+{
+  "enabled": true,
+  "name": "Sound on Command Permission",
+  "description": "Plays a sound notification when the agent needs permission to execute a shell command",
+  "version": "1",
+  "when": {
+    "type": "preToolUse",
+    "toolTypes": [
+      "shell"
+    ]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "paplay /usr/share/sounds/freedesktop/stereo/message.oga"
+  },
+  "workspaceFolderName": "sisyphus",
+  "shortName": "sound-on-command-permission"
+}
