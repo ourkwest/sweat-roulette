@@ -164,6 +164,35 @@
   (and (vector? tags)
        (every? string? tags)))
 
+(defn- validate-exercise-fields
+  "Validate all exercise fields and return error message if invalid, nil if valid.
+   
+   Parameters:
+   - name: Exercise name
+   - difficulty: Exercise difficulty
+   - equipment: Equipment vector
+   - tags: Tags vector
+   
+   Returns:
+   - nil if all fields are valid
+   - error message string if any field is invalid"
+  [name difficulty equipment tags]
+  (cond
+    (not (valid-name? name))
+    "Exercise name must be a non-empty string"
+    
+    (not (valid-difficulty? difficulty))
+    "Exercise difficulty must be between 0.5 and 2.0"
+    
+    (not (valid-equipment? equipment))
+    "Exercise equipment must be a vector"
+    
+    (not (valid-tags? tags))
+    "Exercise tags must be a vector of strings"
+    
+    :else
+    nil))
+
 (defn make-exercise
   "Create an exercise with name, difficulty, equipment, and tags.
    Returns exercise map if valid, or error map if invalid.
@@ -180,20 +209,8 @@
    
    Validates: Requirements 6.2, 6.3, 6.4, 7.2, 7.3, 7.4"
   [name difficulty equipment tags]
-  (cond
-    (not (valid-name? name))
-    {:error "Exercise name must be a non-empty string"}
-    
-    (not (valid-difficulty? difficulty))
-    {:error "Exercise difficulty must be between 0.5 and 2.0"}
-    
-    (not (valid-equipment? equipment))
-    {:error "Exercise equipment must be a vector"}
-    
-    (not (valid-tags? tags))
-    {:error "Exercise tags must be a vector of strings"}
-    
-    :else
+  (if-let [error (validate-exercise-fields name difficulty equipment tags)]
+    {:error error}
     {:exercise {:name (clojure.string/trim name)
                 :difficulty difficulty
                 :equipment equipment
@@ -430,45 +447,30 @@
    Validates: Requirements 6.4, 7.1, 7.2, 7.3, 7.4, 7.5"
   [exercise]
   (let [{:keys [name difficulty equipment enabled tags]} exercise
-        ;; Default equipment to empty vector if not provided
+        ;; Apply defaults
         equipment (or equipment [])
-        ;; Default tags to empty vector if not provided
         tags (or tags [])
-        ;; Default enabled to true if not provided
         enabled (if (nil? enabled) true enabled)]
-    (cond
-      ;; Validate name
-      (not (valid-name? name))
-      {:error "Exercise name must be a non-empty string"}
-      
-      ;; Validate difficulty
-      (not (valid-difficulty? difficulty))
-      {:error "Exercise difficulty must be between 0.5 and 2.0"}
-      
-      ;; Validate equipment
-      (not (valid-equipment? equipment))
-      {:error "Exercise equipment must be a vector"}
-      
-      ;; Validate tags
-      (not (valid-tags? tags))
-      {:error "Exercise tags must be a vector of strings"}
+    
+    ;; Validate fields
+    (if-let [error (validate-exercise-fields name difficulty equipment tags)]
+      {:error error}
       
       ;; Check for duplicate name
-      (exercise-exists? name)
-      {:error (str "Exercise with name '" (clojure.string/trim name) "' already exists")}
-      
-      ;; All validations passed, add exercise
-      :else
-      (let [trimmed-exercise {:name (clojure.string/trim name)
-                              :difficulty difficulty
-                              :equipment equipment
-                              :tags tags
-                              :enabled enabled}
-            updated-library (conj @library-state trimmed-exercise)
-            save-result (save-library! updated-library)]
-        (if (contains? save-result :ok)
-          {:ok trimmed-exercise}
-          save-result)))))
+      (if (exercise-exists? name)
+        {:error (str "Exercise with name '" (clojure.string/trim name) "' already exists")}
+        
+        ;; All validations passed, add exercise
+        (let [trimmed-exercise {:name (clojure.string/trim name)
+                                :difficulty difficulty
+                                :equipment equipment
+                                :tags tags
+                                :enabled enabled}
+              updated-library (conj @library-state trimmed-exercise)
+              save-result (save-library! updated-library)]
+          (if (contains? save-result :ok)
+            {:ok trimmed-exercise}
+            save-result))))))
 
 ;; ============================================================================
 ;; Import/Export Functionality
@@ -587,22 +589,16 @@
     (not (contains? exercise :difficulty))
     {:error "Exercise missing required field: difficulty"}
     
-    (not (valid-name? (:name exercise)))
-    {:error (str "Invalid exercise name: " (:name exercise))}
-    
-    (not (valid-difficulty? (:difficulty exercise)))
-    {:error (str "Invalid exercise difficulty: " (:difficulty exercise) " (must be between 0.5 and 2.0)")}
-    
-    ;; Validate equipment if present
-    (and (contains? exercise :equipment)
-         (not (valid-equipment? (:equipment exercise))))
-    {:error (str "Invalid exercise equipment: " (:equipment exercise) " (must be a vector)")}
-    
     :else
-    ;; Add default equipment if missing (backward compatibility)
-    {:ok (if (contains? exercise :equipment)
-           exercise
-           (assoc exercise :equipment []))}))
+    ;; Add defaults for backward compatibility
+    (let [with-defaults (-> exercise
+                            (update :equipment #(or % []))
+                            (update :tags #(or % [])))
+          {:keys [name difficulty equipment tags]} with-defaults
+          error (validate-exercise-fields name difficulty equipment tags)]
+      (if error
+        {:error error}
+        {:ok with-defaults}))))
 
 (defn- validate-import-data
   "Validate imported JSON data structure.

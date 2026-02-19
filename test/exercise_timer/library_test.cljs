@@ -12,71 +12,72 @@
 
 (deftest test-make-exercise-valid
   (testing "make-exercise with valid inputs creates exercise"
-    (let [result (library/make-exercise "Push-ups" 1.2 ["None"])]
+    (let [result (library/make-exercise "Push-ups" 1.2 [] ["strength" "chest"])]
       (is (contains? result :exercise))
       (is (= "Push-ups" (get-in result [:exercise :name])))
       (is (= 1.2 (get-in result [:exercise :difficulty])))
-      (is (= ["None"] (get-in result [:exercise :equipment]))))))
+      (is (= [] (get-in result [:exercise :equipment])))
+      (is (= ["strength" "chest"] (get-in result [:exercise :tags]))))))
 
 (deftest test-make-exercise-trims-name
   (testing "make-exercise trims whitespace from name"
-    (let [result (library/make-exercise "  Squats  " 1.0 ["None"])]
+    (let [result (library/make-exercise "  Squats  " 1.0 [] ["strength"])]
       (is (contains? result :exercise))
       (is (= "Squats" (get-in result [:exercise :name]))))))
 
 (deftest test-make-exercise-empty-name
   (testing "make-exercise rejects empty name"
-    (let [result (library/make-exercise "" 1.0 ["None"])]
+    (let [result (library/make-exercise "" 1.0 [] ["strength"])]
       (is (contains? result :error))
       (is (= "Exercise name must be a non-empty string" (:error result))))))
 
 (deftest test-make-exercise-whitespace-only-name
   (testing "make-exercise rejects whitespace-only name"
-    (let [result (library/make-exercise "   " 1.0 ["None"])]
+    (let [result (library/make-exercise "   " 1.0 [] ["strength"])]
       (is (contains? result :error))
       (is (= "Exercise name must be a non-empty string" (:error result))))))
 
 (deftest test-make-exercise-difficulty-too-low
   (testing "make-exercise rejects difficulty below 0.5"
-    (let [result (library/make-exercise "Plank" 0.4 ["None"])]
+    (let [result (library/make-exercise "Plank" 0.4 [] ["strength"])]
       (is (contains? result :error))
       (is (= "Exercise difficulty must be between 0.5 and 2.0" (:error result))))))
 
 (deftest test-make-exercise-difficulty-too-high
   (testing "make-exercise rejects difficulty above 2.0"
-    (let [result (library/make-exercise "Burpees" 2.1 ["None"])]
+    (let [result (library/make-exercise "Burpees" 2.1 [] ["cardio"])]
       (is (contains? result :error))
       (is (= "Exercise difficulty must be between 0.5 and 2.0" (:error result))))))
 
 (deftest test-make-exercise-difficulty-boundary-min
   (testing "make-exercise accepts difficulty at minimum boundary (0.5)"
-    (let [result (library/make-exercise "Easy Exercise" 0.5 ["None"])]
+    (let [result (library/make-exercise "Easy Exercise" 0.5 [] ["strength"])]
       (is (contains? result :exercise))
       (is (= 0.5 (get-in result [:exercise :difficulty]))))))
 
 (deftest test-make-exercise-difficulty-boundary-max
   (testing "make-exercise accepts difficulty at maximum boundary (2.0)"
-    (let [result (library/make-exercise "Hard Exercise" 2.0 ["None"])]
+    (let [result (library/make-exercise "Hard Exercise" 2.0 [] ["strength"])]
       (is (contains? result :exercise))
       (is (= 2.0 (get-in result [:exercise :difficulty]))))))
 
 (deftest test-make-exercise-equipment-validation
   (testing "make-exercise validates equipment is a vector"
-    (let [result-valid (library/make-exercise "Test" 1.0 ["None"])
-          result-invalid (library/make-exercise "Test" 1.0 "Not a vector")]
+    (let [result-valid (library/make-exercise "Test" 1.0 [] ["strength"])
+          result-invalid (library/make-exercise "Test" 1.0 "Not a vector" ["strength"])]
       (is (contains? result-valid :exercise))
       (is (contains? result-invalid :error))
       (is (= "Exercise equipment must be a vector" (:error result-invalid))))))
 
 (deftest test-make-exercise-equipment-multiple-items
   (testing "make-exercise accepts equipment with multiple items"
-    (let [result (library/make-exercise "Test" 1.0 ["Dumbbells" "A mat"])]
+    (let [result (library/make-exercise "Test" 1.0 ["Dumbbells" "A mat"] ["strength"])]
       (is (contains? result :exercise))
       (is (= ["Dumbbells" "A mat"] (get-in result [:exercise :equipment]))))))
 
 (deftest test-make-exercise-equipment-empty-vector
   (testing "make-exercise accepts empty equipment vector"
-    (let [result (library/make-exercise "Test" 1.0 [])]
+    (let [result (library/make-exercise "Test" 1.0 [] ["strength"])]
       (is (contains? result :exercise))
       (is (= [] (get-in result [:exercise :equipment]))))))
 
@@ -251,6 +252,10 @@
   "Generator for valid equipment (vector of strings)"
   (gen/vector gen/string-alphanumeric 0 5))
 
+(def gen-valid-tags
+  "Generator for valid tags (vector of strings)"
+  (gen/vector gen/string-alphanumeric 0 5))
+
 ;; Property 13: Exercise Data Integrity
 ;; **Validates: Requirements 6.2, 6.4**
 (defspec ^{:feature "exercise-timer-app"
@@ -260,8 +265,9 @@
   100
   (prop/for-all [name gen-valid-name
                  difficulty gen-valid-difficulty
-                 equipment gen-valid-equipment]
-    (let [result (library/make-exercise name difficulty equipment)]
+                 equipment gen-valid-equipment
+                 tags gen-valid-tags]
+    (let [result (library/make-exercise name difficulty equipment tags)]
       (and
        ;; Should succeed with valid inputs
        (contains? result :exercise)
@@ -273,12 +279,16 @@
        (number? (get-in result [:exercise :difficulty]))
        ;; Exercise should have equipment
        (vector? (get-in result [:exercise :equipment]))
+       ;; Exercise should have tags
+       (vector? (get-in result [:exercise :tags]))
        ;; Name should be trimmed
        (= (clojure.string/trim name) (get-in result [:exercise :name]))
        ;; Difficulty should be preserved
        (= difficulty (get-in result [:exercise :difficulty]))
        ;; Equipment should be preserved
-       (= equipment (get-in result [:exercise :equipment]))))))
+       (= equipment (get-in result [:exercise :equipment]))
+       ;; Tags should be preserved
+       (= tags (get-in result [:exercise :tags]))))))
 
 ;; Property 14: Difficulty Validation
 ;; **Validates: Requirements 6.3**
@@ -289,8 +299,9 @@
   100
   (prop/for-all [name gen-valid-name
                  difficulty gen/double
-                 equipment gen-valid-equipment]
-    (let [result (library/make-exercise name difficulty equipment)
+                 equipment gen-valid-equipment
+                 tags gen-valid-tags]
+    (let [result (library/make-exercise name difficulty equipment tags)
           is-valid-difficulty (and (>= difficulty 0.5) (<= difficulty 2.0))]
       (if is-valid-difficulty
         ;; Valid difficulty should succeed
@@ -309,8 +320,9 @@
   100
   (prop/for-all [name gen-invalid-name
                  difficulty gen-valid-difficulty
-                 equipment gen-valid-equipment]
-    (let [result (library/make-exercise name difficulty equipment)]
+                 equipment gen-valid-equipment
+                 tags gen-valid-tags]
+    (let [result (library/make-exercise name difficulty equipment tags)]
       (and
        ;; Should fail with invalid name
        (contains? result :error)
@@ -816,17 +828,17 @@
     
     (let [exercises (library/get-all-exercises)
           exercise-map (into {} (map (fn [ex] [(:name ex) (:difficulty ex)]) exercises))]
-      ;; Verify specific difficultys
-      (is (= 1.2 (get exercise-map "Push-ups")))
-      (is (= 1.0 (get exercise-map "Squats")))
-      (is (= 1.5 (get exercise-map "Plank")))
-      (is (= 0.8 (get exercise-map "Jumping Jacks")))
-      (is (= 1.0 (get exercise-map "Lunges")))
-      (is (= 1.3 (get exercise-map "Mountain Climbers")))
-      (is (= 1.8 (get exercise-map "Burpees")))
-      (is (= 0.9 (get exercise-map "High Knees")))
-      (is (= 1.0 (get exercise-map "Sit-ups")))
-      (is (= 1.4 (get exercise-map "Wall Sit"))))))
+      ;; Verify specific difficultys (updated values)
+      (is (= 1.3 (get exercise-map "Push-ups")))
+      (is (= 0.9 (get exercise-map "Squats")))
+      (is (= 1.3 (get exercise-map "Plank")))
+      (is (= 0.7 (get exercise-map "Jumping Jacks")))
+      (is (= 1.1 (get exercise-map "Lunges")))
+      (is (= 1.4 (get exercise-map "Mountain Climbers")))
+      (is (= 2.0 (get exercise-map "Burpees")))
+      (is (= 1.0 (get exercise-map "High Knees")))
+      (is (= 0.9 (get exercise-map "Sit-ups")))
+      (is (= 1.5 (get exercise-map "Wall Sit"))))))
 
 (deftest test-initialize-defaults-all-difficultys-valid
   (testing "initialize-defaults! creates exercises with valid difficultys (0.5-2.0)"
@@ -848,8 +860,8 @@
     
     ;; Load library (should trigger default initialization)
     (let [exercises (library/load-library)]
-      ;; Should have 14 default exercises
-      (is (= 14 (count exercises)))
+      ;; Should have 60 default exercises
+      (is (= 60 (count exercises)))
       
       ;; Verify some default exercises are present
       (let [exercise-names (set (map :name exercises))]
@@ -1049,8 +1061,8 @@
           unique-names (set names)]
       ;; Number of unique names should equal total number of exercises
       (is (= (count names) (count unique-names)))
-      ;; Should have exactly 14 unique names
-      (is (= 14 (count unique-names))))))
+      ;; Should have exactly 60 unique names
+      (is (= 60 (count unique-names))))))
 
 (deftest test-default-exercises-all-valid-difficultys
   (testing "Default exercises all have valid difficultys"
@@ -1078,9 +1090,9 @@
       ;; Wall Sit should have "A wall" equipment
       (let [wall-sit (first (filter #(= "Wall Sit" (:name %)) exercises))]
         (is (= ["A wall"] (:equipment wall-sit))))
-      ;; Most other exercises should have "None" equipment
+      ;; Bodyweight exercises should have empty equipment vector
       (let [push-ups (first (filter #(= "Push-ups" (:name %)) exercises))]
-        (is (= ["None"] (:equipment push-ups)))))))
+        (is (= [] (:equipment push-ups)))))))
 
 (deftest test-library-state-consistency-after-failed-add
   (testing "Library state remains consistent after failed add operation"
@@ -1601,8 +1613,8 @@
         ;; All exercises should have equipment field
         (is (every? #(contains? % :equipment) exercises))
         
-        ;; All exercises should have default equipment ["None"]
-        (is (every? #(= ["None"] (:equipment %)) exercises))))))
+        ;; All exercises should have default equipment [] (empty vector for bodyweight)
+        (is (every? #(= [] (:equipment %)) exercises))))))
 
 (deftest test-import-from-json-preserves-new-format
   (testing "import-from-json preserves equipment field in new format JSON"
@@ -1650,7 +1662,7 @@
           (is (= ["Dumbbells"] (:equipment test-ex))))))))
 
 (deftest test-add-exercise-defaults-equipment-to-none
-  (testing "add-exercise! defaults equipment to [\"None\"] if not provided"
+  (testing "add-exercise! defaults equipment to [] if not provided"
     ;; Clear library
     (library/clear-library-for-testing!)
     
@@ -1660,16 +1672,16 @@
       (if (contains? result :ok)
         (do
           ;; Returned exercise should have default equipment
-          (is (= ["None"] (:equipment (:ok result))))
+          (is (= [] (:equipment (:ok result))))
           
           ;; Exercise should be in library with default equipment
           (let [exercises (library/get-all-exercises)
                 test-ex (first (filter #(= "Test Exercise" (:name %)) exercises))]
-            (is (= ["None"] (:equipment test-ex)))))
+            (is (= [] (:equipment test-ex)))))
         ;; If storage failed, just check in-memory state
         (let [exercises (library/get-all-exercises)
               test-ex (first (filter #(= "Test Exercise" (:name %)) exercises))]
-          (is (= ["None"] (:equipment test-ex))))))))
+          (is (= [] (:equipment test-ex))))))))
 
 (deftest test-conflict-detection-considers-equipment
   (testing "import conflict detection considers equipment differences"
@@ -1777,11 +1789,12 @@
     
     (let [equipment-types (library/get-equipment-types)]
       (is (set? equipment-types))
-      ;; Default exercises have "None" and "A wall"
-      (is (contains? equipment-types "None"))
+      ;; Default exercises have various equipment types
       (is (contains? equipment-types "A wall"))
-      ;; Should have at least these two types
-      (is (>= (count equipment-types) 2)))))
+      (is (contains? equipment-types "Dumbbells"))
+      (is (contains? equipment-types "A chair"))
+      ;; Should have multiple equipment types
+      (is (>= (count equipment-types) 3)))))
 
 ;; ============================================================================
 ;; Unit Tests for Equipment Filtering (Task 4.2)

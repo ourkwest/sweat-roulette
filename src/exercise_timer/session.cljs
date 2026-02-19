@@ -2,6 +2,34 @@
   "Session Generator - generates exercise sequences with difficulty-based time distribution")
 
 ;; ============================================================================
+;; Constants
+;; ============================================================================
+
+(def ^:private target-exercise-duration-seconds
+  "Target average duration per exercise for optimal workout pacing"
+  40)
+
+(def ^:private min-exercise-duration-seconds
+  "Minimum duration for any single exercise"
+  20)
+
+(def ^:private max-exercise-duration-seconds
+  "Maximum duration for any single exercise before splitting"
+  120)
+
+(def ^:private sided-exercise-multiplier
+  "Time multiplier for sided exercises (e.g., 1.5x for left and right sides)"
+  1.5)
+
+(def ^:private min-exercises-per-session
+  "Minimum number of exercises for variety"
+  3)
+
+(def default-session-duration-minutes
+  "Default session duration in minutes"
+  5)
+
+;; ============================================================================
 ;; Session Data Structures
 ;; ============================================================================
 
@@ -89,14 +117,6 @@
    :total-duration-seconds total-duration-seconds})
 
 ;; ============================================================================
-;; Default Configuration
-;; ============================================================================
-
-(def default-session-duration-minutes
-  "Default session duration in minutes.
-   Validates: Requirements 1.4"
-  5)
-
 ;; ============================================================================
 ;; Difficulty-Based Time Distribution Algorithm
 ;; ============================================================================
@@ -257,16 +277,6 @@
 ;; ============================================================================
 ;; Time Constraints
 ;; ============================================================================
-
-(def min-exercise-duration-seconds
-  "Minimum allowed duration for a single exercise in seconds.
-   Validates: Requirements 2.6"
-  20)
-
-(def max-exercise-duration-seconds
-  "Maximum allowed duration for a single exercise in seconds (2 minutes).
-   Validates: Requirements 2.7"
-  120)
 
 (defn apply-time-constraints
   "Ensure exercise duration is between minimum and maximum bounds.
@@ -623,7 +633,7 @@
                 sided? (:sided exercise false)
                 current-duration (:duration-seconds session-ex)]
             (if sided?
-              (assoc session-ex :duration-seconds (int (* current-duration 1.5)))
+              (assoc session-ex :duration-seconds (int (* current-duration sided-exercise-multiplier)))
               session-ex)))
         exercises-with-durations))
 
@@ -716,10 +726,10 @@
                                   filtered-exercises))
         
         ;; Step 3: Determine number of exercises to select
-        ;; Aim for approximately 40 seconds per exercise for better workout pacing
-        ;; Use at least 3 exercises for variety, but cap at available exercises
-        target-avg-duration 40
-        ideal-num-exercises (max 3 (int (/ total-duration-seconds target-avg-duration)))
+        ;; Aim for approximately target duration per exercise for better workout pacing
+        ;; Use at least min exercises for variety, but cap at available exercises
+        ideal-num-exercises (max min-exercises-per-session 
+                                 (int (/ total-duration-seconds target-exercise-duration-seconds)))
         num-exercises (min ideal-num-exercises (count tag-filtered-exercises))
         
         ;; Step 4: Select exercises using round-robin without repetition
