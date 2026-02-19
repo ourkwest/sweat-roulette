@@ -187,17 +187,24 @@
 
 (deftest test-calculate-exercise-duration
   (testing "calculate-exercise-duration divides base time by difficulty"
-    ;; With inverse difficulty: duration = base-time / difficulty
+    ;; duration = base-time * (1/difficulty) for non-sided exercises
     ;; Higher difficulty = less time
-    (is (= 83 (session/calculate-exercise-duration 100 1.2)))
-    (is (= 100 (session/calculate-exercise-duration 100 1.0)))
-    (is (= 66 (session/calculate-exercise-duration 100 1.5)))))
+    (is (= 83 (session/calculate-exercise-duration 100 {:difficulty 1.2})))
+    (is (= 100 (session/calculate-exercise-duration 100 {:difficulty 1.0})))
+    (is (= 66 (session/calculate-exercise-duration 100 {:difficulty 1.5})))))
 
 (deftest test-calculate-exercise-duration-floors-result
   (testing "calculate-exercise-duration floors fractional results"
-    ;; With inverse difficulty: duration = base-time / difficulty (floored)
-    (is (= 123 (session/calculate-exercise-duration 100 0.81)))
-    (is (= 84 (session/calculate-exercise-duration 100 1.19)))))
+    ;; duration = base-time * (1/difficulty) (floored)
+    (is (= 123 (session/calculate-exercise-duration 100 {:difficulty 0.81})))
+    (is (= 84 (session/calculate-exercise-duration 100 {:difficulty 1.19})))))
+
+(deftest test-calculate-exercise-duration-sided
+  (testing "calculate-exercise-duration gives 1.5x time to sided exercises"
+    ;; duration = base-time * (1.5/difficulty) for sided exercises
+    (is (= 150 (session/calculate-exercise-duration 100 {:difficulty 1.0 :sided true})))
+    (is (= 125 (session/calculate-exercise-duration 100 {:difficulty 1.2 :sided true})))
+    (is (= 100 (session/calculate-exercise-duration 100 {:difficulty 1.5 :sided true})))))
 
 (deftest test-distribute-remaining-seconds-no-remainder
   (testing "distribute-remaining-seconds with no remaining seconds"

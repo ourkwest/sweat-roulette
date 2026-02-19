@@ -121,21 +121,31 @@
 ;; Difficulty-Based Time Distribution Algorithm
 ;; ============================================================================
 
+(defn- exercise-weight
+  "Calculate the time weight for an exercise.
+   Weight is inversely proportional to difficulty, with a 1.5x multiplier for sided exercises.
+   Higher weight = more time allocated."
+  [exercise]
+  (let [base-weight (/ 1.0 (:difficulty exercise))]
+    (if (:sided exercise false)
+      (* base-weight sided-exercise-multiplier)
+      base-weight)))
+
 (defn calculate-difficulty-sum
-  "Calculate the sum of inverse exercise difficulties (1/difficulty).
+  "Calculate the sum of exercise weights (inverse difficulty, adjusted for sided exercises).
    
    Parameters:
    - exercises: vector of exercise maps with :difficulty
    
    Returns:
-   - number representing sum of all inverse difficulties
+   - number representing sum of all exercise weights
    
    Validates: Requirements 2.4"
   [exercises]
   {:pre [(vector? exercises)
          (seq exercises)
          (every? #(contains? % :difficulty) exercises)]}
-  (reduce + (map #(/ 1.0 (:difficulty %)) exercises)))
+  (reduce + (map exercise-weight exercises)))
 
 (defn calculate-base-time
   "Calculate base time per unit inverse difficulty.
@@ -157,40 +167,36 @@
   (/ total-duration-seconds inverse-difficulty-sum))
 
 (defn calculate-exercise-duration
-  "Calculate duration for a single exercise based on its difficulty.
+  "Calculate duration for a single exercise based on its weight.
    
-   Duration = base-time / exercise-difficulty (rounded down to integer seconds)
-   Higher difficulty = harder exercise = less time
-   Lower difficulty = easier exercise = more time
+   Duration = base-time * exercise-weight (rounded down to integer seconds)
+   Higher difficulty = less time, sided exercises get 1.5x time.
    
    Parameters:
-   - base-time: base time per unit difficulty
-   - exercise-difficulty: difficulty multiplier for this exercise
+   - base-time: base time per unit weight
+   - exercise: exercise map with :difficulty and optionally :sided
    
    Returns:
    - integer representing duration in seconds (floored)
    
    Validates: Requirements 2.4"
-  [base-time exercise-difficulty]
+  [base-time exercise]
   {:pre [(number? base-time)
          (pos? base-time)
-         (number? exercise-difficulty)
-         (pos? exercise-difficulty)]}
-  (int (Math/floor (/ base-time exercise-difficulty))))
+         (map? exercise)
+         (contains? exercise :difficulty)]}
+  (int (Math/floor (* base-time (exercise-weight exercise)))))
 
 (defn distribute-remaining-seconds
   "Distribute remaining seconds due to rounding across exercises.
    
    After calculating integer durations, there may be remaining seconds
-   due to rounding. This function distributes them proportionally based
-   on the fractional parts that were lost during rounding.
-   
-   Strategy: Give one extra second to exercises with the largest fractional
-   remainders until all remaining seconds are distributed.
+   due to rounding. This function distributes them by giving one extra second
+   to exercises with the largest fractional remainders.
    
    Parameters:
    - exercises: vector of exercise maps with :difficulty
-   - base-time: base time per unit difficulty
+   - base-time: base time per unit weight
    - initial-durations: vector of initially calculated integer durations
    - remaining-seconds: number of seconds to distribute
    
@@ -207,7 +213,7 @@
     initial-durations
     (let [;; Calculate fractional remainders for each exercise
           fractional-parts (mapv (fn [exercise duration]
-                                   (let [exact-duration (/ base-time (:difficulty exercise))
+                                   (let [exact-duration (* base-time (exercise-weight exercise))
                                          fractional (- exact-duration duration)]
                                      fractional))
                                  exercises
@@ -229,20 +235,14 @@
             initial-durations))))
 
 (defn distribute-time-by-difficulty
-  "Distribute total session time across exercises based on inverse of their difficulties.
+  "Distribute total session time across exercises based on their weights.
    
-   Higher difficulty = harder exercise = less time
-   Lower difficulty = easier exercise = more time
-   
-   Algorithm:
-   1. Calculate sum of inverse difficulties (1/difficulty for each exercise)
-   2. Calculate base time = total-duration / inverse-difficulty-sum
-   3. For each exercise, calculate duration = floor(base-time / difficulty)
-   4. Calculate remaining seconds = total-duration - sum(calculated-durations)
-   5. Distribute remaining seconds to exercises with largest fractional remainders
+   Each exercise's weight is inversely proportional to difficulty, with a 1.5x
+   multiplier for sided exercises. This means sided exercises get more time
+   within the total budget, rather than inflating the session duration.
    
    Parameters:
-   - exercises: vector of exercise maps with :name and :difficulty
+   - exercises: vector of exercise maps with :name, :difficulty, and optionally :sided
    - total-duration-seconds: total session duration in seconds
    
    Returns:
@@ -256,13 +256,12 @@
          (seq exercises)
          (every? #(and (contains? % :name) (contains? % :difficulty)) exercises)
          (pos-int? total-duration-seconds)]}
-  (let [;; Step 1: Calculate sum of inverse difficulties
-        inverse-difficulty-sum (calculate-difficulty-sum exercises)
-        ;; Step 2: Calculate base time per unit inverse difficulty
-        base-time (calculate-base-time total-duration-seconds inverse-difficulty-sum)
+  (let [;; Step 1: Calculate sum of exercise weights
+        weight-sum (calculate-difficulty-sum exercises)
+        ;; Step 2: Calculate base time per unit weight
+        base-time (calculate-base-time total-duration-seconds weight-sum)
         ;; Step 3: Calculate initial durations (floored to integers)
-        initial-durations (mapv #(calculate-exercise-duration base-time (:difficulty %))
-                                exercises)
+        initial-durations (mapv #(calculate-exercise-duration base-time %) exercises)
         ;; Step 4: Calculate remaining seconds due to rounding
         allocated-seconds (reduce + initial-durations)
         remaining-seconds (- total-duration-seconds allocated-seconds)
@@ -608,35 +607,6 @@
               new-remaining (filterv #(not= % next-ex) remaining)]
           (recur new-remaining (conj result next-ex)))))))
 
-;; ============================================================================
-;; Sided Exercise Time Adjustment
-;; ============================================================================
-
-(defn apply-sided-multiplier
-  "Apply 1.5x time multiplier to sided exercises.
-   
-   Sided exercises (e.g., single-leg exercises, side planks) need to be performed
-   on both sides, so they get 50% more time with a 'Switch sides' announcement
-   at the halfway point.
-   
-   Parameters:
-   - exercises-with-durations: vector of session exercise entries
-   
-   Returns:
-   - vector of session exercise entries with adjusted durations for sided exercises
-   
-   Note: This increases total session duration. The caller should handle any
-   necessary time redistribution if maintaining exact duration is required."
-  [exercises-with-durations]
-  (mapv (fn [session-ex]
-          (let [exercise (:exercise session-ex)
-                sided? (:sided exercise false)
-                current-duration (:duration-seconds session-ex)]
-            (if sided?
-              (assoc session-ex :duration-seconds (int (* current-duration sided-exercise-multiplier)))
-              session-ex)))
-        exercises-with-durations))
-
 (defn- filter-by-equipment
   "Filter exercises to only those that can be performed with available equipment.
    
@@ -762,17 +732,15 @@
         selected-exercises (select-exercises-round-robin tag-filtered num-exercises)
         
         ;; Step 5: Distribute time across exercises based on difficulties
+        ;; (sided exercises automatically get 1.5x time within the total budget)
         exercises-with-durations (distribute-time-by-difficulty selected-exercises total-duration-seconds)
-        
-        ;; Step 5.25: Apply 1.5x multiplier to sided exercises
-        sided-adjusted-exercises (apply-sided-multiplier exercises-with-durations)
         
         ;; Step 5.5: Apply minimum constraint and redistribute excess time
         ;; If any exercise is below 20s, bring it up to 20s and redistribute the added time
         ;; by reducing other exercises proportionally
-        constrained-exercises (let [below-min (filter #(< (:duration-seconds %) min-exercise-duration-seconds) sided-adjusted-exercises)]
+        constrained-exercises (let [below-min (filter #(< (:duration-seconds %) min-exercise-duration-seconds) exercises-with-durations)]
                                 (if (empty? below-min)
-                                  sided-adjusted-exercises
+                                  exercises-with-durations
                                   (let [;; Calculate how much time we need to add
                                         time-deficit (reduce + (map #(- min-exercise-duration-seconds (:duration-seconds %)) below-min))
                                         ;; Bring all below-min exercises up to minimum
@@ -780,7 +748,7 @@
                                                           (if (< (:duration-seconds ex) min-exercise-duration-seconds)
                                                             (assoc ex :duration-seconds min-exercise-duration-seconds)
                                                             ex))
-                                                        sided-adjusted-exercises)
+                                                        exercises-with-durations)
                                         ;; Find exercises that can be reduced (above minimum)
                                         reducible (filter #(> (:duration-seconds %) min-exercise-duration-seconds) with-mins)
                                         total-reducible-time (reduce + (map #(- (:duration-seconds %) min-exercise-duration-seconds) reducible))]
