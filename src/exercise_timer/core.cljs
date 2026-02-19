@@ -863,22 +863,43 @@
                       :style {:min-width "60px"}}
              "Add"]]]
           
+          ;; Type tags section
           [:div.form-group
-           [:label "Tags (select all that apply):"]
-           [:div.equipment-checkboxes {:role "group" :aria-label "Tag selection"}
-            (for [tag (sort all-tags)]
-              ^{:key tag}
-              [:label.equipment-checkbox
-               [:input {:type "checkbox"
-                        :checked (contains? current-tags tag)
-                        :on-change #(toggle-tag-fn tag)}]
-               [:span tag]])]
-           
-           ;; Add new tag
-           [:div.add-equipment {:style {:margin-top "10px" :display "flex" :gap "8px"}}
+           [:label "Type:"]
+           [:div.equipment-checkboxes {:role "group" :aria-label "Exercise type selection"}
+            (let [type-tags #{"cardio" "strength" "flexibility" "balance" "plyometric" 
+                              "low-impact" "high-impact"}
+                  type-tag-list (sort (filter #(contains? type-tags %) all-tags))]
+              (for [tag type-tag-list]
+                ^{:key tag}
+                [:label.equipment-checkbox
+                 [:input {:type "checkbox"
+                          :checked (contains? current-tags tag)
+                          :on-change #(toggle-tag-fn tag)}]
+                 [:span tag]]))]]
+          
+          ;; Muscle group tags section
+          [:div.form-group
+           [:label "Muscle Groups:"]
+           [:div.equipment-checkboxes {:role "group" :aria-label "Muscle group selection"}
+            (let [type-tags #{"cardio" "strength" "flexibility" "balance" "plyometric" 
+                              "low-impact" "high-impact"}
+                  muscle-tag-list (sort (filter #(not (contains? type-tags %)) all-tags))]
+              (for [tag muscle-tag-list]
+                ^{:key tag}
+                [:label.equipment-checkbox
+                 [:input {:type "checkbox"
+                          :checked (contains? current-tags tag)
+                          :on-change #(toggle-tag-fn tag)}]
+                 [:span tag]]))]]
+          
+          ;; Add new tag
+          [:div.form-group
+           [:label "Add Muscle Group:"]
+           [:div.add-equipment {:style {:display "flex" :gap "8px"}}
             [:input {:type "text"
                      :value new-tag-input
-                     :placeholder "Add new tag"
+                     :placeholder "Add new muscle group"
                      :style {:flex "1"}
                      :on-change #(update-ui! {:edit-exercise-new-tag (-> % .-target .-value)})
                      :on-key-press #(when (= (.-key %) "Enter") 
@@ -904,7 +925,7 @@
             [:input {:type "checkbox"
                      :checked sided
                      :on-change #(update-ui! {:edit-exercise-sided (-> % .-target .-checked)})}]
-            [:span "Single-sided (switch sides halfway through)"]]]
+            [:span "Single-sided"]]]
           
           [:div.modal-actions
            [:button {:on-click save-fn
