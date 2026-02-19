@@ -69,11 +69,16 @@
 (defonce ^:private interval-id
   (atom nil))
 
+;; Track whether "Switch sides" has been announced for current exercise
+(defonce ^:private switch-sides-announced
+  (atom false))
+
 ;; Registered callbacks for timer events
 (defonce ^:private callbacks
   (atom {:on-tick []
          :on-exercise-change []
-         :on-complete []}))
+         :on-complete []
+         :on-switch-sides []}))
 
 ;; ============================================================================
 ;; Timer Control Functions
@@ -198,6 +203,9 @@
       (or (= state-keyword :not-started) (= state-keyword :paused))
       (do
         (update-state! assoc :session-state :running)
+        ;; Reset switch-sides flag when starting from :not-started
+        (when (= state-keyword :not-started)
+          (reset! switch-sides-announced false))
         (start-interval!)
         ;; Trigger exercise-change callback when starting from :not-started
         ;; This ensures the first exercise is announced just like subsequent ones
@@ -252,6 +260,7 @@
   (if-let [plan @session-plan]
     (do
       (clear-interval!)
+      (reset! switch-sides-announced false)
       (let [first-exercise (first (:exercises plan))
             initial-duration (:duration-seconds first-exercise)]
         (set-state! (make-timer-state 0 initial-duration :not-started 0)))
@@ -385,6 +394,7 @@
    Side effects:
    - Updates timer state
    - Triggers :on-exercise-change or :on-complete callbacks
+   - Resets switch-sides-announced flag
    
    Validates: Requirements 4.3, 4.4, 9.1"
   []
@@ -394,6 +404,8 @@
         plan @session-plan
         exercises (:exercises plan)
         next-index (inc current-index)]
+    ;; Reset switch-sides flag for new exercise
+    (reset! switch-sides-announced false)
     (if (< next-index (count exercises))
       ;; There is a next exercise
       (let [next-exercise (nth exercises next-index)
@@ -410,12 +422,13 @@
   "Handle a single timer tick (called every second).
    
    Decrements remaining seconds and increments total elapsed seconds.
-   Handles exercise transitions.
+   Handles exercise transitions and 'Switch sides' announcements for sided exercises.
    
    Side effects:
    - Updates timer state
    - May advance to next exercise or complete session
    - Triggers :on-tick callback
+   - Triggers :on-switch-sides callback at halfway point for sided exercises
    
    Validates: Requirements 4.1, 4.2, 4.3, 4.4, 9.1, 9.3"
   []
@@ -430,7 +443,23 @@
                            (-> state
                                (update :remaining-seconds dec)
                                (update :total-elapsed-seconds inc))))
-          (trigger-callbacks! :on-tick (dec remaining)))
+          (trigger-callbacks! :on-tick (dec remaining))
+          
+          ;; Check if we should announce "Switch sides" for sided exercises
+          (when-not @switch-sides-announced
+            (let [plan @session-plan
+                  current-index (:current-exercise-index current-state)
+                  exercises (:exercises plan)
+                  current-exercise (nth exercises current-index)
+                  exercise-data (:exercise current-exercise)
+                  sided? (:sided exercise-data false)
+                  total-duration (:duration-seconds current-exercise)
+                  halfway-point (int (/ total-duration 2))
+                  time-elapsed (- total-duration remaining)]
+              ;; Announce at halfway point for sided exercises
+              (when (and sided? (>= time-elapsed halfway-point))
+                (reset! switch-sides-announced true)
+                (trigger-callbacks! :on-switch-sides)))))
         ;; Timer reached zero, advance to next exercise
         (advance-to-next-exercise!)))))
 
@@ -500,6 +529,20 @@
   [callback]
   (swap! callbacks update :on-complete conj callback))
 
+(defn on-switch-sides
+  "Register a callback to be called at halfway point for sided exercises.
+   
+   Parameters:
+   - callback: function with no arguments
+   
+   Returns:
+   - nil
+   
+   Side effects:
+   - Adds callback to :on-switch-sides callbacks list"
+  [callback]
+  (swap! callbacks update :on-switch-sides conj callback))
+
 (defn clear-callbacks!
   "Clear all registered callbacks.
    Useful for testing and cleanup.
@@ -512,4 +555,5 @@
   []
   (reset! callbacks {:on-tick []
                      :on-exercise-change []
-                     :on-complete []}))
+                     :on-complete []
+                     :on-switch-sides []}))

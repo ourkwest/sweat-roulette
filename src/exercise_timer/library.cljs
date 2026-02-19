@@ -231,78 +231,78 @@
   "Default set of exercises to initialize the library.
    Validates: Requirements 6.1, 6.6"
   [;; Bodyweight - Core & Abs
-   {:name "Plank" :difficulty 1.3 :equipment [] :tags ["strength" "abs" "shoulders" "low-impact"]}
-   {:name "Sit-ups" :difficulty 0.9 :equipment [] :tags ["strength" "abs" "hip-flexors" "low-impact"]}
-   {:name "Russian Twists" :difficulty 1.0 :equipment [] :tags ["strength" "abs" "obliques" "low-impact"]}
-   {:name "Plank Shoulder Taps" :difficulty 1.5 :equipment [] :tags ["strength" "abs" "shoulders" "balance" "low-impact"]}
-   {:name "Bicycle Crunches" :difficulty 1.0 :equipment [] :tags ["strength" "abs" "obliques" "low-impact"]}
-   {:name "Leg Raises" :difficulty 1.4 :equipment [] :tags ["strength" "abs" "hip-flexors" "low-impact"]}
-   {:name "Side Plank" :difficulty 1.6 :equipment [] :tags ["strength" "abs" "obliques" "balance" "low-impact"]}
-   {:name "Dead Bug" :difficulty 0.9 :equipment [] :tags ["strength" "abs" "low-impact"]}
-   {:name "Flutter Kicks" :difficulty 1.1 :equipment [] :tags ["strength" "abs" "hip-flexors" "low-impact"]}
+   {:name "Plank" :difficulty 1.3 :equipment [] :tags ["strength" "abs" "shoulders" "low-impact"] :sided false}
+   {:name "Sit-ups" :difficulty 0.9 :equipment [] :tags ["strength" "abs" "hip-flexors" "low-impact"] :sided false}
+   {:name "Russian Twists" :difficulty 1.0 :equipment [] :tags ["strength" "abs" "obliques" "low-impact"] :sided false}
+   {:name "Plank Shoulder Taps" :difficulty 1.5 :equipment [] :tags ["strength" "abs" "shoulders" "balance" "low-impact"] :sided false}
+   {:name "Bicycle Crunches" :difficulty 1.0 :equipment [] :tags ["strength" "abs" "obliques" "low-impact"] :sided false}
+   {:name "Leg Raises" :difficulty 1.4 :equipment [] :tags ["strength" "abs" "hip-flexors" "low-impact"] :sided false}
+   {:name "Side Plank" :difficulty 1.6 :equipment [] :tags ["strength" "abs" "obliques" "balance" "low-impact"] :sided true}
+   {:name "Dead Bug" :difficulty 0.9 :equipment [] :tags ["strength" "abs" "low-impact"] :sided false}
+   {:name "Flutter Kicks" :difficulty 1.1 :equipment [] :tags ["strength" "abs" "hip-flexors" "low-impact"] :sided false}
    
    ;; Bodyweight - Upper Body
-   {:name "Push-ups" :difficulty 1.3 :equipment [] :tags ["strength" "chest" "triceps" "shoulders" "low-impact"]}
-   {:name "Diamond Push-ups" :difficulty 1.7 :equipment [] :tags ["strength" "chest" "triceps" "low-impact"]}
-   {:name "Wide Push-ups" :difficulty 1.2 :equipment [] :tags ["strength" "chest" "shoulders" "low-impact"]}
-   {:name "Pike Push-ups" :difficulty 1.6 :equipment [] :tags ["strength" "shoulders" "triceps" "low-impact"]}
-   {:name "Tricep Dips" :difficulty 1.5 :equipment ["A chair"] :tags ["strength" "triceps" "shoulders" "low-impact"]}
-   {:name "Wall Push-ups" :difficulty 0.5 :equipment ["A wall"] :tags ["strength" "chest" "triceps" "shoulders" "low-impact"]}
-   {:name "Arm Circles" :difficulty 0.6 :equipment [] :tags ["cardio" "shoulders" "low-impact"]}
-   {:name "Air Punches" :difficulty 0.6 :equipment [] :tags ["cardio" "shoulders" "low-impact"]}
+   {:name "Push-ups" :difficulty 1.3 :equipment [] :tags ["strength" "chest" "triceps" "shoulders" "low-impact"] :sided false}
+   {:name "Diamond Push-ups" :difficulty 1.7 :equipment [] :tags ["strength" "chest" "triceps" "low-impact"] :sided false}
+   {:name "Wide Push-ups" :difficulty 1.2 :equipment [] :tags ["strength" "chest" "shoulders" "low-impact"] :sided false}
+   {:name "Pike Push-ups" :difficulty 1.6 :equipment [] :tags ["strength" "shoulders" "triceps" "low-impact"] :sided false}
+   {:name "Tricep Dips" :difficulty 1.5 :equipment ["A chair"] :tags ["strength" "triceps" "shoulders" "low-impact"] :sided false}
+   {:name "Wall Push-ups" :difficulty 0.5 :equipment ["A wall"] :tags ["strength" "chest" "triceps" "shoulders" "low-impact"] :sided false}
+   {:name "Arm Circles" :difficulty 0.6 :equipment [] :tags ["cardio" "shoulders" "low-impact"] :sided false}
+   {:name "Air Punches" :difficulty 0.6 :equipment [] :tags ["cardio" "shoulders" "low-impact"] :sided false}
    
    ;; Bodyweight - Lower Body
-   {:name "Squats" :difficulty 0.9 :equipment [] :tags ["strength" "quads" "glutes" "low-impact"]}
-   {:name "Lunges" :difficulty 1.1 :equipment [] :tags ["strength" "quads" "glutes" "hamstrings" "balance" "low-impact"]}
-   {:name "Wall Sit" :difficulty 1.5 :equipment ["A wall"] :tags ["strength" "quads" "glutes" "low-impact"]}
-   {:name "Kneel to Stand" :difficulty 1.4 :equipment [] :tags ["strength" "quads" "glutes" "balance" "low-impact"]}
-   {:name "Calf Raises" :difficulty 0.6 :equipment [] :tags ["strength" "calves" "low-impact"]}
-   {:name "Single Leg Calf Raises" :difficulty 1.0 :equipment [] :tags ["strength" "calves" "balance" "low-impact"]}
-   {:name "Glute Bridges" :difficulty 0.8 :equipment [] :tags ["strength" "glutes" "hamstrings" "lower-back" "low-impact"]}
-   {:name "Single Leg Glute Bridge" :difficulty 1.3 :equipment [] :tags ["strength" "glutes" "hamstrings" "balance" "low-impact"]}
-   {:name "Reverse Lunges" :difficulty 1.0 :equipment [] :tags ["strength" "quads" "glutes" "hamstrings" "balance" "low-impact"]}
-   {:name "Side Lunges" :difficulty 1.1 :equipment [] :tags ["strength" "quads" "glutes" "balance" "low-impact"]}
-   {:name "Step-ups" :difficulty 1.0 :equipment ["A step or box"] :tags ["strength" "quads" "glutes" "low-impact"]}
-   {:name "Bulgarian Split Squats" :difficulty 1.8 :equipment ["A chair"] :tags ["strength" "quads" "glutes" "balance" "low-impact"]}
+   {:name "Squats" :difficulty 0.9 :equipment [] :tags ["strength" "quads" "glutes" "low-impact"] :sided false}
+   {:name "Lunges" :difficulty 1.1 :equipment [] :tags ["strength" "quads" "glutes" "hamstrings" "balance" "low-impact"] :sided false}
+   {:name "Wall Sit" :difficulty 1.5 :equipment ["A wall"] :tags ["strength" "quads" "glutes" "low-impact"] :sided false}
+   {:name "Kneel to Stand" :difficulty 1.4 :equipment [] :tags ["strength" "quads" "glutes" "balance" "low-impact"] :sided false}
+   {:name "Calf Raises" :difficulty 0.6 :equipment [] :tags ["strength" "calves" "low-impact"] :sided false}
+   {:name "Single Leg Calf Raises" :difficulty 1.0 :equipment [] :tags ["strength" "calves" "balance" "low-impact"] :sided true}
+   {:name "Glute Bridges" :difficulty 0.8 :equipment [] :tags ["strength" "glutes" "hamstrings" "lower-back" "low-impact"] :sided false}
+   {:name "Single Leg Glute Bridge" :difficulty 1.3 :equipment [] :tags ["strength" "glutes" "hamstrings" "balance" "low-impact"] :sided true}
+   {:name "Reverse Lunges" :difficulty 1.0 :equipment [] :tags ["strength" "quads" "glutes" "hamstrings" "balance" "low-impact"] :sided false}
+   {:name "Side Lunges" :difficulty 1.1 :equipment [] :tags ["strength" "quads" "glutes" "balance" "low-impact"] :sided false}
+   {:name "Step-ups" :difficulty 1.0 :equipment ["A step or box"] :tags ["strength" "quads" "glutes" "low-impact"] :sided false}
+   {:name "Bulgarian Split Squats" :difficulty 1.8 :equipment ["A chair"] :tags ["strength" "quads" "glutes" "balance" "low-impact"] :sided false}
    
    ;; Cardio - Low Impact
-   {:name "Marching in Place" :difficulty 0.5 :equipment [] :tags ["cardio" "quads" "hip-flexors" "low-impact"]}
-   {:name "Butt Kicks" :difficulty 0.7 :equipment [] :tags ["cardio" "hamstrings" "low-impact"]}
-   {:name "Side Steps" :difficulty 0.6 :equipment [] :tags ["cardio" "quads" "low-impact"]}
-   {:name "Grapevines" :difficulty 0.7 :equipment [] :tags ["cardio" "quads" "low-impact"]}
+   {:name "Marching in Place" :difficulty 0.5 :equipment [] :tags ["cardio" "quads" "hip-flexors" "low-impact"] :sided false}
+   {:name "Butt Kicks" :difficulty 0.7 :equipment [] :tags ["cardio" "hamstrings" "low-impact"] :sided false}
+   {:name "Side Steps" :difficulty 0.6 :equipment [] :tags ["cardio" "quads" "low-impact"] :sided false}
+   {:name "Grapevines" :difficulty 0.7 :equipment [] :tags ["cardio" "quads" "low-impact"] :sided false}
    
    ;; Cardio - High Impact
-   {:name "Jumping Jacks" :difficulty 0.7 :equipment [] :tags ["cardio" "full-body" "high-impact"]}
-   {:name "High Knees" :difficulty 1.0 :equipment [] :tags ["cardio" "quads" "hip-flexors" "high-impact"]}
-   {:name "Mountain Climbers" :difficulty 1.4 :equipment [] :tags ["cardio" "strength" "abs" "shoulders" "high-impact"]}
-   {:name "Burpees" :difficulty 2.0 :equipment [] :tags ["cardio" "strength" "plyometric" "full-body" "high-impact"]}
-   {:name "Jump Squats" :difficulty 1.6 :equipment [] :tags ["cardio" "plyometric" "quads" "glutes" "high-impact"]}
-   {:name "Tuck Jumps" :difficulty 1.9 :equipment [] :tags ["cardio" "plyometric" "quads" "abs" "high-impact"]}
-   {:name "Star Jumps" :difficulty 1.3 :equipment [] :tags ["cardio" "plyometric" "full-body" "high-impact"]}
-   {:name "Skater Hops" :difficulty 1.4 :equipment [] :tags ["cardio" "plyometric" "quads" "glutes" "balance" "high-impact"]}
+   {:name "Jumping Jacks" :difficulty 0.7 :equipment [] :tags ["cardio" "full-body" "high-impact"] :sided false}
+   {:name "High Knees" :difficulty 1.0 :equipment [] :tags ["cardio" "quads" "hip-flexors" "high-impact"] :sided false}
+   {:name "Mountain Climbers" :difficulty 1.4 :equipment [] :tags ["cardio" "strength" "abs" "shoulders" "high-impact"] :sided false}
+   {:name "Burpees" :difficulty 2.0 :equipment [] :tags ["cardio" "strength" "plyometric" "full-body" "high-impact"] :sided false}
+   {:name "Jump Squats" :difficulty 1.6 :equipment [] :tags ["cardio" "plyometric" "quads" "glutes" "high-impact"] :sided false}
+   {:name "Tuck Jumps" :difficulty 1.9 :equipment [] :tags ["cardio" "plyometric" "quads" "abs" "high-impact"] :sided false}
+   {:name "Star Jumps" :difficulty 1.3 :equipment [] :tags ["cardio" "plyometric" "full-body" "high-impact"] :sided false}
+   {:name "Skater Hops" :difficulty 1.4 :equipment [] :tags ["cardio" "plyometric" "quads" "glutes" "balance" "high-impact"] :sided false}
    
    ;; Flexibility & Balance
-   {:name "Standing Quad Stretch" :difficulty 0.5 :equipment [] :tags ["flexibility" "quads" "balance" "low-impact"]}
-   {:name "Standing Hamstring Stretch" :difficulty 0.5 :equipment [] :tags ["flexibility" "hamstrings" "low-impact"]}
-   {:name "Cat-Cow Stretch" :difficulty 0.5 :equipment [] :tags ["flexibility" "back" "abs" "low-impact"]}
-   {:name "Child's Pose" :difficulty 0.5 :equipment [] :tags ["flexibility" "back" "shoulders" "low-impact"]}
-   {:name "Downward Dog" :difficulty 1.1 :equipment [] :tags ["flexibility" "strength" "shoulders" "hamstrings" "calves" "low-impact"]}
-   {:name "Single Leg Balance" :difficulty 0.7 :equipment [] :tags ["balance" "calves" "low-impact"]}
-   {:name "Tree Pose" :difficulty 0.9 :equipment [] :tags ["balance" "flexibility" "quads" "low-impact"]}
+   {:name "Standing Quad Stretch" :difficulty 0.5 :equipment [] :tags ["flexibility" "quads" "balance" "low-impact"] :sided true}
+   {:name "Standing Hamstring Stretch" :difficulty 0.5 :equipment [] :tags ["flexibility" "hamstrings" "low-impact"] :sided true}
+   {:name "Cat-Cow Stretch" :difficulty 0.5 :equipment [] :tags ["flexibility" "back" "abs" "low-impact"] :sided false}
+   {:name "Child's Pose" :difficulty 0.5 :equipment [] :tags ["flexibility" "back" "shoulders" "low-impact"] :sided false}
+   {:name "Downward Dog" :difficulty 1.1 :equipment [] :tags ["flexibility" "strength" "shoulders" "hamstrings" "calves" "low-impact"] :sided false}
+   {:name "Single Leg Balance" :difficulty 0.7 :equipment [] :tags ["balance" "calves" "low-impact"] :sided true}
+   {:name "Tree Pose" :difficulty 0.9 :equipment [] :tags ["balance" "flexibility" "quads" "low-impact"] :sided true}
    
    ;; Dumbbell Exercises
-   {:name "Dumbbell Bicep Curls" :difficulty 1.0 :equipment ["Dumbbells"] :tags ["strength" "biceps" "forearms" "low-impact"]}
-   {:name "Dumbbell Shoulder Press" :difficulty 1.3 :equipment ["Dumbbells"] :tags ["strength" "shoulders" "triceps" "low-impact"]}
-   {:name "Dumbbell Rows" :difficulty 1.2 :equipment ["Dumbbells"] :tags ["strength" "back" "biceps" "low-impact"]}
-   {:name "Dumbbell Goblet Squats" :difficulty 1.2 :equipment ["Dumbbells"] :tags ["strength" "quads" "glutes" "low-impact"]}
-   {:name "Dumbbell Chest Press" :difficulty 1.4 :equipment ["Dumbbells", "A bench"] :tags ["strength" "chest" "triceps" "shoulders" "low-impact"]}
-   {:name "Dumbbell Lateral Raises" :difficulty 1.1 :equipment ["Dumbbells"] :tags ["strength" "shoulders" "low-impact"]}
-   {:name "Dumbbell Front Raises" :difficulty 1.0 :equipment ["Dumbbells"] :tags ["strength" "shoulders" "low-impact"]}
-   {:name "Dumbbell Tricep Extensions" :difficulty 1.1 :equipment ["Dumbbells"] :tags ["strength" "triceps" "low-impact"]}
-   {:name "Dumbbell Hammer Curls" :difficulty 1.0 :equipment ["Dumbbells"] :tags ["strength" "biceps" "forearms" "low-impact"]}
-   {:name "Dumbbell Lunges" :difficulty 1.3 :equipment ["Dumbbells"] :tags ["strength" "quads" "glutes" "hamstrings" "balance" "low-impact"]}
-   {:name "Dumbbell Deadlifts" :difficulty 1.4 :equipment ["Dumbbells"] :tags ["strength" "hamstrings" "glutes" "lower-back" "low-impact"]}
-   {:name "Dumbbell Shrugs" :difficulty 0.9 :equipment ["Dumbbells"] :tags ["strength" "shoulders" "back" "low-impact"]}])
+   {:name "Dumbbell Bicep Curls" :difficulty 1.0 :equipment ["Dumbbells"] :tags ["strength" "biceps" "forearms" "low-impact"] :sided false}
+   {:name "Dumbbell Shoulder Press" :difficulty 1.3 :equipment ["Dumbbells"] :tags ["strength" "shoulders" "triceps" "low-impact"] :sided false}
+   {:name "Dumbbell Rows" :difficulty 1.2 :equipment ["Dumbbells"] :tags ["strength" "back" "biceps" "low-impact"] :sided true}
+   {:name "Dumbbell Goblet Squats" :difficulty 1.2 :equipment ["Dumbbells"] :tags ["strength" "quads" "glutes" "low-impact"] :sided false}
+   {:name "Dumbbell Chest Press" :difficulty 1.4 :equipment ["Dumbbells", "A bench"] :tags ["strength" "chest" "triceps" "shoulders" "low-impact"] :sided false}
+   {:name "Dumbbell Lateral Raises" :difficulty 1.1 :equipment ["Dumbbells"] :tags ["strength" "shoulders" "low-impact"] :sided false}
+   {:name "Dumbbell Front Raises" :difficulty 1.0 :equipment ["Dumbbells"] :tags ["strength" "shoulders" "low-impact"] :sided false}
+   {:name "Dumbbell Tricep Extensions" :difficulty 1.1 :equipment ["Dumbbells"] :tags ["strength" "triceps" "low-impact"] :sided false}
+   {:name "Dumbbell Hammer Curls" :difficulty 1.0 :equipment ["Dumbbells"] :tags ["strength" "biceps" "forearms" "low-impact"] :sided false}
+   {:name "Dumbbell Lunges" :difficulty 1.3 :equipment ["Dumbbells"] :tags ["strength" "quads" "glutes" "hamstrings" "balance" "low-impact"] :sided false}
+   {:name "Dumbbell Deadlifts" :difficulty 1.4 :equipment ["Dumbbells"] :tags ["strength" "hamstrings" "glutes" "lower-back" "low-impact"] :sided false}
+   {:name "Dumbbell Shrugs" :difficulty 0.9 :equipment ["Dumbbells"] :tags ["strength" "shoulders" "back" "low-impact"] :sided false}])
 
 (defn initialize-defaults!
   "Initialize the exercise library with default exercises.

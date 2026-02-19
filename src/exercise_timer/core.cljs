@@ -149,19 +149,20 @@
    - equipment: vector of equipment type strings
    - tags: vector of tag strings
    - enabled: whether exercise is enabled
+   - sided: whether exercise requires switching sides
    
    Side effects:
    - Adds or updates exercise in library
    - Updates app state
    - Closes edit exercise dialog"
-  [original-name new-name difficulty equipment tags enabled]
+  [original-name new-name difficulty equipment tags enabled sided]
   (let [is-new? (empty? original-name)
         name-changed? (and (not is-new?) (not= original-name new-name))]
     ;; Delete old exercise if editing (either name changed or just updating properties)
     (when (not is-new?)
       (library/delete-exercise! original-name))
     
-    (let [result (library/add-exercise! {:name new-name :difficulty difficulty :equipment equipment :tags tags :enabled enabled})]
+    (let [result (library/add-exercise! {:name new-name :difficulty difficulty :equipment equipment :tags tags :enabled enabled :sided sided})]
       (if (contains? result :ok)
         (do
           (update-exercises! (library/load-library))
@@ -172,11 +173,12 @@
                        :edit-exercise-equipment ""
                        :edit-exercise-tags ""
                        :edit-exercise-enabled true
+                       :edit-exercise-sided false
                        :edit-exercise-error nil}))
         (do
           ;; If update failed, restore the original exercise
           (when (not is-new?)
-            (library/add-exercise! {:name original-name :difficulty difficulty :equipment equipment :tags tags :enabled enabled}))
+            (library/add-exercise! {:name original-name :difficulty difficulty :equipment equipment :tags tags :enabled enabled :sided sided}))
           (update-exercises! (library/load-library))
           (update-ui! {:edit-exercise-error (:error result)}))))))
 
@@ -632,6 +634,7 @@
               ex-difficulty (:difficulty ex)
               ex-equipment (:equipment ex [])
               ex-tags (:tags ex [])
+              ex-sided (:sided ex false)
               open-edit-fn #(update-ui! {:show-edit-exercise true
                                          :edit-exercise-name ex-name
                                          :edit-exercise-original-name ex-name
@@ -639,6 +642,7 @@
                                          :edit-exercise-equipment (clojure.string/join ", " ex-equipment)
                                          :edit-exercise-tags (clojure.string/join ", " ex-tags)
                                          :edit-exercise-enabled enabled?
+                                         :edit-exercise-sided ex-sided
                                          :edit-exercise-error nil})]
           ^{:key ex-name}
           [:div.exercise-item {:class (when-not enabled? "disabled")
@@ -673,6 +677,7 @@
                                         :edit-exercise-equipment ""
                                         :edit-exercise-tags ""
                                         :edit-exercise-enabled true
+                                        :edit-exercise-sided false
                                         :edit-exercise-error nil})
                 :aria-label "Add new exercise to library"}
        "Add"]
@@ -694,6 +699,7 @@
             equipment-str (:edit-exercise-equipment ui "")
             tags-str (:edit-exercise-tags ui "")
             enabled (:edit-exercise-enabled ui true)
+            sided (:edit-exercise-sided ui false)
             error (:edit-exercise-error ui)
             new-equipment-input (:edit-exercise-new-equipment ui "")
             new-tag-input (:edit-exercise-new-tag ui "")
@@ -732,7 +738,7 @@
                            tags-vec (if (empty? current-tags)
                                      []
                                      (vec current-tags))]
-                      (save-exercise! original-name name difficulty equipment-vec tags-vec enabled))
+                      (save-exercise! original-name name difficulty equipment-vec tags-vec enabled sided))
             
             ;; Toggle equipment handler
             toggle-equipment-fn (fn [equip]
@@ -872,6 +878,13 @@
                      :checked enabled
                      :on-change #(update-ui! {:edit-exercise-enabled (-> % .-target .-checked)})}]
             [:span "Include in sessions"]]]
+          
+          [:div.form-group
+           [:label.equipment-checkbox
+            [:input {:type "checkbox"
+                     :checked sided
+                     :on-change #(update-ui! {:edit-exercise-sided (-> % .-target .-checked)})}]
+            [:span "Single-sided (switch sides halfway through)"]]]
           
           [:div.modal-actions
            [:button {:on-click save-fn
@@ -1080,7 +1093,14 @@
      (update-timer-state! (timer/get-state))
      ;; Announce completion if speech enabled
      (when (get-in @app-state [:ui :speech-enabled])
-       (speech/speak-completion!)))))
+       (speech/speak-completion!))))
+  
+  ;; Announce "Switch sides" at halfway point for sided exercises
+  (timer/on-switch-sides
+   (fn []
+     ;; Announce switch sides if speech enabled
+     (when (get-in @app-state [:ui :speech-enabled])
+       (speech/speak! "Switch sides" {:rate 1.0 :lang "en-GB"})))))
 
 ;; ============================================================================
 ;; App Initialization

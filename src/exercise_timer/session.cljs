@@ -599,6 +599,35 @@
           (recur new-remaining (conj result next-ex)))))))
 
 ;; ============================================================================
+;; Sided Exercise Time Adjustment
+;; ============================================================================
+
+(defn apply-sided-multiplier
+  "Apply 1.5x time multiplier to sided exercises.
+   
+   Sided exercises (e.g., single-leg exercises, side planks) need to be performed
+   on both sides, so they get 50% more time with a 'Switch sides' announcement
+   at the halfway point.
+   
+   Parameters:
+   - exercises-with-durations: vector of session exercise entries
+   
+   Returns:
+   - vector of session exercise entries with adjusted durations for sided exercises
+   
+   Note: This increases total session duration. The caller should handle any
+   necessary time redistribution if maintaining exact duration is required."
+  [exercises-with-durations]
+  (mapv (fn [session-ex]
+          (let [exercise (:exercise session-ex)
+                sided? (:sided exercise false)
+                current-duration (:duration-seconds session-ex)]
+            (if sided?
+              (assoc session-ex :duration-seconds (int (* current-duration 1.5)))
+              session-ex)))
+        exercises-with-durations))
+
+;; ============================================================================
 ;; Session Generation
 ;; ============================================================================
 
@@ -699,12 +728,15 @@
         ;; Step 5: Distribute time across exercises based on difficulties
         exercises-with-durations (distribute-time-by-difficulty selected-exercises total-duration-seconds)
         
+        ;; Step 5.25: Apply 1.5x multiplier to sided exercises
+        sided-adjusted-exercises (apply-sided-multiplier exercises-with-durations)
+        
         ;; Step 5.5: Apply minimum constraint and redistribute excess time
         ;; If any exercise is below 20s, bring it up to 20s and redistribute the added time
         ;; by reducing other exercises proportionally
-        constrained-exercises (let [below-min (filter #(< (:duration-seconds %) min-exercise-duration-seconds) exercises-with-durations)]
+        constrained-exercises (let [below-min (filter #(< (:duration-seconds %) min-exercise-duration-seconds) sided-adjusted-exercises)]
                                 (if (empty? below-min)
-                                  exercises-with-durations
+                                  sided-adjusted-exercises
                                   (let [;; Calculate how much time we need to add
                                         time-deficit (reduce + (map #(- min-exercise-duration-seconds (:duration-seconds %)) below-min))
                                         ;; Bring all below-min exercises up to minimum
@@ -712,7 +744,7 @@
                                                           (if (< (:duration-seconds ex) min-exercise-duration-seconds)
                                                             (assoc ex :duration-seconds min-exercise-duration-seconds)
                                                             ex))
-                                                        exercises-with-durations)
+                                                        sided-adjusted-exercises)
                                         ;; Find exercises that can be reduced (above minimum)
                                         reducible (filter #(> (:duration-seconds %) min-exercise-duration-seconds) with-mins)
                                         total-reducible-time (reduce + (map #(- (:duration-seconds %) min-exercise-duration-seconds) reducible))]
