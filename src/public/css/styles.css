@@ -3,7 +3,7 @@
 /* Skip Link for Accessibility */
 .skip-link {
   position: absolute;
-  top: -40px;
+  top: -100%;
   left: 0;
   background: #3498db;
   color: white;
