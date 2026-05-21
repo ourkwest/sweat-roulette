@@ -76,6 +76,7 @@
   (r/atom
     {:exercises []                    ; Exercise library
      :current-session nil             ; Current session plan or nil
+     :view :setup                     ; Current view - :setup, :preview, :active
      :timer-state {:current-exercise-index 0
                    :remaining-seconds 0
                    :session-state :not-started}
@@ -485,7 +486,7 @@
                             ;; Check if disclaimer has been accepted
                             (let [disclaimer-accepted? (= "true" (.getItem js/localStorage "disclaimer-accepted"))]
                               (if disclaimer-accepted?
-                                ;; Start session immediately
+                                ;; Generate session and show preview
                                 (let [all-exercises (:exercises @app-state)
                                       enabled-exercises (vec (filter #(:enabled % true) all-exercises))
                                       session-config (:session-config @app-state)
@@ -495,18 +496,13 @@
                                       config (session/make-session-config duration equipment excluded-tags)
                                       session-plan (session/generate-session config enabled-exercises)]
                                   (update-current-session! session-plan)
-                                  (timer/initialize-session! session-plan)
-                                  (update-timer-state! (timer/get-state))
-                                  ;; Reset speech announcement tracking for new session
-                                  (speech/reset-announcement-tracking!)
-                                  ;; Request wake lock to keep screen on during workout
-                                  (wakelock/request-wake-lock!))
+                                  (swap! app-state assoc :view :preview))
                                 ;; Show disclaimer first
                                 (update-ui! {:show-disclaimer true}))))
                 :disabled (or session-active? 
                              (empty? (:exercises @app-state))
                              (empty? (filter #(:enabled % true) (:exercises @app-state))))}
-       "Start"]
+       "Plan Session"]
       
       ;; Speech toggle
       (when (speech/speech-available?)
@@ -633,6 +629,7 @@
        [:button {:on-click #(do (timer/pause!)
                                 (update-current-session! nil)
                                 (update-timer-state! (timer/make-timer-state))
+                                (swap! app-state assoc :view :setup)
                                 (wakelock/release-wake-lock!))
                  :aria-label "Cancel session and return to setup"}
         "Cancel Session"]])))
@@ -649,7 +646,8 @@
          [:h2 "🎉 Session Complete!"]
          [:p "Great job! You've completed your workout."]
          [:button {:on-click #(do (update-current-session! nil)
-                                  (update-timer-state! (timer/make-timer-state)))}
+                                  (update-timer-state! (timer/make-timer-state))
+                                  (swap! app-state assoc :view :setup))}
           "Start New Session"]]))))
 
 ;; Exercise Library Panel Component
@@ -1086,7 +1084,7 @@
                                 (.setItem js/localStorage "disclaimer-accepted" "true")
                                 ;; Close disclaimer
                                 (update-ui! {:show-disclaimer false})
-                                ;; Start the session
+                                ;; Generate session and show preview
                                 (let [all-exercises (:exercises @app-state)
                                       enabled-exercises (vec (filter #(:enabled % true) all-exercises))
                                       session-config (:session-config @app-state)
@@ -1096,10 +1094,7 @@
                                       config (session/make-session-config duration equipment excluded-tags)
                                       session-plan (session/generate-session config enabled-exercises)]
                                   (update-current-session! session-plan)
-                                  (timer/initialize-session! session-plan)
-                                  (update-timer-state! (timer/get-state))
-                                  (speech/reset-announcement-tracking!)
-                                  (wakelock/request-wake-lock!)))
+                                  (swap! app-state assoc :view :preview)))
                    :aria-label "Accept disclaimer and start session"
                    :style {:background "#27ae60"}}
           "I Understand - Start Workout"]
@@ -1108,47 +1103,127 @@
           "Cancel"]]]])))
 
 ;; ============================================================================
+;; Session Preview Component
+;; ============================================================================
+
+(defn- start-session-from-preview!
+  "Initialize timer and transition from preview to active view."
+  []
+  (let [session (:current-session @app-state)]
+    (timer/initialize-session! session)
+    (update-timer-state! (timer/get-state))
+    (speech/reset-announcement-tracking!)
+    (wakelock/request-wake-lock!)
+    (swap! app-state assoc :view :active)))
+
+(defn- skip-exercise-in-preview!
+  "Remove an exercise by index and regenerate the session without it."
+  [exercise-name]
+  (let [session (:current-session @app-state)
+        ;; Get the exercises currently in the session, remove occurrences of the skipped one
+        remaining-exercises (->> (:exercises session)
+                                 (remove #(= exercise-name (get-in % [:exercise :name])))
+                                 vec)]
+    (if (seq remaining-exercises)
+      ;; Redistribute time across remaining exercises
+      (let [total-duration (:total-duration-seconds session)
+            exercises-data (mapv :exercise remaining-exercises)
+            new-session-exercises (session/distribute-time-by-difficulty exercises-data total-duration)
+            new-session (session/make-session-plan new-session-exercises total-duration)]
+        (update-current-session! new-session))
+      ;; No exercises left - go back to setup
+      (do (update-current-session! nil)
+          (swap! app-state assoc :view :setup)))))
+
+(defn session-preview []
+  (let [session (:current-session @app-state)]
+    (when session
+      [:div.session-preview
+       [:h2 "Session Preview"]
+       [:div.preview-summary
+        (str (count (:exercises session)) " exercises · "
+             (format/seconds-to-mm-ss (:total-duration-seconds session)) " total")]
+       [:div.preview-exercise-list
+        (for [[idx ex] (map-indexed vector (:exercises session))]
+          (let [ex-name (get-in ex [:exercise :name])
+                ex-tags (get-in ex [:exercise :tags])
+                duration (:duration-seconds ex)]
+            ^{:key (str ex-name "-" idx)}
+            [:div.preview-exercise-item
+             [:div.preview-exercise-info
+              [:span.preview-exercise-name ex-name]
+              [:span.preview-exercise-duration (format/seconds-to-mm-ss duration)]]
+             (when (seq ex-tags)
+               (let [{:keys [type muscle]} (split-tags ex-tags)]
+                 [:div.exercise-tags
+                  (concat
+                    (map #(tag-badge % "type-tag") type)
+                    (map #(tag-badge % "muscle-tag") muscle))]))
+             [:div.quick-actions
+              [:button {:on-click #(let [url (str "https://www.google.com/search?q=" (js/encodeURIComponent (str "how to do " ex-name " exercise")))]
+                                    (js/window.open url "_blank"))
+                        :aria-label (str "Search for " ex-name)}
+               "Search"]
+              [:button {:on-click #(skip-exercise-in-preview! ex-name)
+                        :aria-label (str "Skip " ex-name)}
+               "Skip"]]]))]
+       [:div.preview-actions
+        [:button {:on-click start-session-from-preview!
+                  :aria-label "Begin workout"}
+         "Begin Workout"]
+        [:button {:on-click #(do (update-current-session! nil)
+                                 (swap! app-state assoc :view :setup))
+                  :aria-label "Go back to configuration"}
+         "Back"]]])))
+
+;; ============================================================================
 ;; Root Component
 ;; ============================================================================
 
 (defn app []
-  (let [session (:current-session @app-state)
-        progress-pct (if session (timer/calculate-progress-percentage) 0)]
+  (let [view (:view @app-state)
+        session (:current-session @app-state)
+        active? (= view :active)
+        progress-pct (if active? (timer/calculate-progress-percentage) 0)]
     [:div.app-container
-     [:header.session-header {:class (when session "active")}
-      [:div.progress-fill {:style (when session {:width (str progress-pct "%")})}]
-      (when session
+     [:header.session-header {:class (when active? "active")}
+      [:div.progress-fill {:style (when active? {:width (str progress-pct "%")})}]
+      (when active?
         (let [timer-state (:timer-state @app-state)
               index (:current-exercise-index timer-state)
               total (count (:exercises session))]
           [:div.exercise-counter {:aria-label (str "Exercise " (inc index) " of " total)}
            (str (inc index) " / " total)]))
       [:h1 "Sweat Roulette"]
-      (when session
+      (when active?
         (let [timer-state (:timer-state @app-state)
               total-duration (:total-duration-seconds session)
               elapsed (:total-elapsed-seconds timer-state 0)
               formatted-elapsed (format/seconds-to-mm-ss elapsed)
               formatted-total (format/seconds-to-mm-ss total-duration)]
           [:div.session-timer (str formatted-elapsed " / " formatted-total)]))]
-     
+
      [:main#main-content
-      (if session
-        ;; Active session view - show only the workout
+      (case view
+        :setup
+        [:div.setup-view
+         [:div.session-area
+          [configuration-panel]]
+         [:div.library-area
+          [exercise-library-panel]]]
+
+        :preview
+        [:div.session-area
+         [session-preview]]
+
+        :active
         [:div.session-area
          [:div.active-session
           [exercise-display]
           [quick-actions]
           [timer-display]
           [control-panel]
-          [completion-screen]]]
-        
-        ;; Setup view - show configuration and library
-        [:div.setup-view
-         [:div.session-area
-          [configuration-panel]]
-         [:div.library-area
-          [exercise-library-panel]]])]
+          [completion-screen]]])]
      
      ;; Footer with version
      [:footer.app-footer
