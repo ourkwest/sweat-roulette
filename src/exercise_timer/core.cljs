@@ -15,6 +15,7 @@
 
 (declare update-timer-state!)
 (declare update-ui!)
+(declare start-session-from-preview!)
 
 ;; ============================================================================
 ;; Reusable UI Components
@@ -502,7 +503,26 @@
                 :disabled (or session-active? 
                              (empty? (:exercises @app-state))
                              (empty? (filter #(:enabled % true) (:exercises @app-state))))}
-       "Plan Session"]
+       "See Plan"]
+      [:button.cta-button
+       {:on-click (fn []
+                    (let [disclaimer-accepted? (= "true" (.getItem js/localStorage "disclaimer-accepted"))]
+                      (if disclaimer-accepted?
+                        (let [all-exercises (:exercises @app-state)
+                              enabled-exercises (vec (filter #(:enabled % true) all-exercises))
+                              session-config (:session-config @app-state)
+                              duration (:session-duration-minutes ui)
+                              equipment (:equipment session-config)
+                              excluded-tags (:excluded-tags session-config)
+                              config (session/make-session-config duration equipment excluded-tags)
+                              session-plan (session/generate-session config enabled-exercises)]
+                          (update-current-session! session-plan)
+                          (start-session-from-preview!))
+                        (update-ui! {:show-disclaimer true}))))
+        :disabled (or session-active?
+                     (empty? (:exercises @app-state))
+                     (empty? (filter #(:enabled % true) (:exercises @app-state))))}
+       "Go!"]
       
       ;; Speech toggle
       (when (speech/speech-available?)
@@ -1106,11 +1126,12 @@
 ;; Session Preview Component
 ;; ============================================================================
 
-(defn- start-session-from-preview!
-  "Initialize timer and transition from preview to active view."
+(defn start-session-from-preview!
+  "Initialize timer, start it running, and transition to active view."
   []
   (let [session (:current-session @app-state)]
     (timer/initialize-session! session)
+    (timer/start!)
     (update-timer-state! (timer/get-state))
     (speech/reset-announcement-tracking!)
     (wakelock/request-wake-lock!)
@@ -1168,9 +1189,9 @@
                         :aria-label (str "Skip " ex-name)}
                "Skip"]]]))]
        [:div.preview-actions
-        [:button {:on-click start-session-from-preview!
-                  :aria-label "Begin workout"}
-         "Begin Workout"]
+        [:button.cta-button {:on-click start-session-from-preview!
+                  :aria-label "Start workout"}
+         "Go!"]
         [:button {:on-click #(do (update-current-session! nil)
                                  (swap! app-state assoc :view :setup))
                   :aria-label "Go back to configuration"}

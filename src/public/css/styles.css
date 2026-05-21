@@ -1036,3 +1036,14 @@ button:disabled {
   padding: 12px;
   font-size: 1rem;
 }
+
+/* Call to Action button */
+.cta-button {
+  background: var(--color-highlight) !important;
+  color: #000 !important;
+  font-weight: 700;
+}
+
+.cta-button:hover {
+  background: #e6e600 !important;
+}
