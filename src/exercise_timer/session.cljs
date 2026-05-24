@@ -771,15 +771,26 @@
         ;; This enforces the maximum duration constraint of 120 seconds
         split-exercises (split-long-exercises constrained-exercises)
         
-        ;; Step 7: Distribute exercises for tag variety (avoid consecutive same muscle groups)
-        variety-distributed (distribute-for-tag-variety split-exercises)
-        
-        ;; Step 8: Calculate final total duration (should equal original due to time conservation in splitting)
+        ;; Step 7: Create session plan for progressive difficulty arrangement
+        pre-arranged-plan (make-session-plan split-exercises (reduce + (map :duration-seconds split-exercises)))
+
+        ;; Step 8: Arrange exercises for progressive difficulty (easier at start/end)
+        arranged-plan (arrange-progressive-difficulty pre-arranged-plan)
+
+        ;; Step 9: Apply tag variety within difficulty thirds
+        ;; Split into thirds, apply tag variety within each, then recombine
+        arranged-exercises (:exercises arranged-plan)
+        n (count arranged-exercises)
+        third (max 1 (int (/ n 3)))
+        first-third (subvec arranged-exercises 0 third)
+        middle-third (subvec arranged-exercises third (min (* 2 third) n))
+        last-third (subvec arranged-exercises (min (* 2 third) n))
+        variety-distributed (vec (concat
+                                   (distribute-for-tag-variety first-third)
+                                   (distribute-for-tag-variety middle-third)
+                                   (distribute-for-tag-variety last-third)))
+
+        ;; Step 10: Create final session plan
         final-total (reduce + (map :duration-seconds variety-distributed))
-        
-        ;; Step 9: Create session plan (before progressive difficulty arrangement)
-        pre-arranged-plan (make-session-plan variety-distributed final-total)
-        
-        ;; Step 10: Arrange exercises for progressive difficulty (easier at start/end)
-        session-plan (arrange-progressive-difficulty pre-arranged-plan)]
+        session-plan (make-session-plan variety-distributed final-total)]
     session-plan))

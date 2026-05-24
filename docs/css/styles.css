@@ -939,3 +939,111 @@ button:disabled {
   padding: 12px;
   font-size: 1rem;
 }
+
+/* Session Preview */
+.session-preview {
+  padding: 20px;
+}
+
+.session-preview h2 {
+  margin: 0 0 10px 0;
+}
+
+.preview-summary {
+  color: #666;
+  margin-bottom: 20px;
+  font-size: 0.95rem;
+}
+
+.preview-exercise-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.preview-exercise-item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.preview-exercise-item .preview-exercise-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.preview-exercise-item .quick-actions {
+  margin: 0;
+}
+
+.preview-exercise-item .exercise-tags {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.preview-exercise-item .tag-badge {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: #f0f0f0;
+  color: #555;
+  border: 1px solid #ddd;
+}
+
+.preview-exercise-item .tag-badge.type-tag {
+  background: #e8f4f8;
+  color: #2980b9;
+  border: 1px solid #3498db;
+}
+
+.preview-exercise-item .tag-badge.muscle-tag {
+  background: #fef5e7;
+  color: #d68910;
+  border: 1px solid #f39c12;
+}
+
+.preview-exercise-info {
+  display: flex;
+  justify-content: space-between;
+  flex: 1;
+  margin-right: 12px;
+}
+
+.preview-exercise-name {
+  font-weight: 500;
+}
+
+.preview-exercise-duration {
+  color: #666;
+  font-variant-numeric: tabular-nums;
+}
+
+.preview-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.preview-actions button {
+  flex: 1;
+  padding: 12px;
+  font-size: 1rem;
+}
+
+/* Call to Action button */
+.cta-button {
+  background: var(--color-highlight) !important;
+  color: #000 !important;
+  font-weight: 700;
+}
+
+.cta-button:hover {
+  background: #e6e600 !important;
+}
